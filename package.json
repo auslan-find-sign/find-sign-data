@@ -30,16 +30,22 @@
   "dependencies": {
     "@fontsource/fira-mono": "^4.5.0",
     "@lukeed/uuid": "^2.0.0",
-    "cbor-codec": "^0.9.6",
+    "base64-arraybuffer": "^1.0.2",
+    "cbor-codec": "^0.9.7",
     "cookie": "^0.4.1",
+    "highlight.js": "^11.5.1",
     "json5": "^2.2.1",
+    "marked": "^4.0.14",
     "mime-db": "^1.52.0",
     "nanoid": "^3.3.2",
     "pigeonmark-arbitrary": "^1.0.3",
     "pigeonmark-html": "^1.0.2",
     "pigeonmark-utils": "^1.0.5",
     "pigeonmark-xml": "^1.0.1",
+    "prismjs": "^1.27.0",
+    "prismjs-components-importer": "^0.1.0",
     "string-natural-compare": "^3.0.1",
-    "tiny-function-queue": "^1.0.1"
+    "tiny-function-queue": "^1.0.1",
+    "tweetnacl": "^1.0.3"
   }
 }

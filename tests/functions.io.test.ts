@@ -1,6 +1,7 @@
-import { vi, expect, describe, it } from 'vitest'
+import { expect, describe, it } from 'vitest'
 import { nanoid } from 'nanoid'
-import * as io from '../src/lib/storage/io'
+import * as io from '../src/lib/functions/io'
+import { byteArrayToString } from '../src/lib/functions/binary-string'
 
 describe.concurrent('storage io', () => {
   it('list', async () => {
@@ -20,7 +21,7 @@ describe.concurrent('storage io', () => {
   it('read', async () => {
     const name = `#test-${nanoid()}`
     await io.write(name, 'hello')
-    expect((await io.read(name)).toString()).to.equal('hello')
+    expect(byteArrayToString(await io.read(name))).to.equal('hello')
     await io.remove(name)
     expect(await io.exists(name)).to.be.false
   })
@@ -46,7 +47,7 @@ describe.concurrent('storage io', () => {
     expect(path).to.be.a.string
     expect(path).to.include(`${folder}/`)
     expect(path).to.include('.txt')
-    expect((await io.read(path)).toString()).to.equal('howdy there')
+    expect(byteArrayToString(await io.read(path))).to.equal('howdy there')
     expect(await io.exists(path)).to.be.true
     await io.remove(folder)
     expect(await io.exists(path)).to.be.false
@@ -55,9 +56,9 @@ describe.concurrent('storage io', () => {
   it('append', async () => {
     const filename = `#test-io-append-${nanoid()}`
     await io.write(filename, 'hello ')
-    expect((await io.read(filename)).toString()).to.equal('hello ')
+    expect(byteArrayToString(await io.read(filename))).to.equal('hello ')
     await io.append(filename, 'world!')
-    expect((await io.read(filename)).toString()).to.equal('hello world!')
+    expect(byteArrayToString(await io.read(filename))).to.equal('hello world!')
     await io.remove(filename)
   })
 

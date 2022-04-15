@@ -14,13 +14,26 @@ const extToMimeType = Object.fromEntries(
   )
 )
 
-type FileInfo = {
+export type FileInfo = {
   name: string, // filename
   type: string, // inferred mimetype
   size: number, // file size in bytes
   lastModified: Date, // time when file was last modified,
   etag: string, // some unique string likely to change when file contents change
   created: Date, // time when file was created
+  path: string, // full path to file
+  isFile: boolean, // is this item a file?
+  isFolder: boolean, // is this item a folder?
+}
+
+// if it's been stringified through json it looks like this
+export type FileInfoJSON = {
+  name: string, // filename
+  type: string, // inferred mimetype
+  size: number, // file size in bytes
+  lastModified: string, // time when file was last modified,
+  etag: string, // some unique string likely to change when file contents change
+  created: string, // time when file was created
   path: string, // full path to file
   isFile: boolean, // is this item a file?
   isFolder: boolean, // is this item a folder?
@@ -48,18 +61,18 @@ export async function list (path: string | FileInfo): Promise<FileInfo[]> {
   const dirPath = fileToOSPath(path)
   const dirlist = await fs.readdir(dirPath)
 
-  const result: FileInfo[] = []
-  for (const name of dirlist) {
+  const result: FileInfo[] = await Promise.all(dirlist.map(name => {
     const filePath = `${path}/${name}`
-    result.push(await getInfo(filePath))
-  }
+    return getInfo(filePath)
+  }))
 
   return result
 }
 
 // read a file
-export async function read (path: string | FileInfo) {
-  return await fs.readFile(fileToOSPath(path))
+export async function read (path: string | FileInfo): Promise<Uint8Array> {
+  const nodeBuffer = await fs.readFile(fileToOSPath(path))
+  return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength)
 }
 
 // rewrite the contents of a file, with no downtime (rename-over)
@@ -134,7 +147,7 @@ export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
   return {
     name: pathToSegments(pathString).at(-1),
     path: pathString,
-    type: extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream',
+    type: pathString.split('/').at(-1).includes('.') ? extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream' : 'application/octet-stream',
     size: stats.size,
     isFile: stats.isFile(),
     isFolder: stats.isDirectory(),

@@ -1,5 +1,9 @@
-<div class:layout={true} class:hasSidebar={$$slots.sidebar}>
-  {#if $$slots.sidebar}
+<script lang=ts>
+  export let sidebar: boolean = !!$$slots.sidebar
+</script>
+
+<div class:layout={true} class:has-sidebar={sidebar}>
+  {#if sidebar}
     <div class:sidebar={true}>
       <slot name=sidebar/>
     </div>
@@ -21,7 +25,7 @@
     margin-right: auto;
   }
 
-  div.layout.hasSidebar {
+  div.layout.has-sidebar {
     grid-template-columns: 290px 10px 600px;
     grid-template-areas: "sidebar gap main";
   }

@@ -1,5 +1,6 @@
 :root {
-  /* --texture-leather-cyan: url(leather_seamless_texture_3872.jpeg); */
   --texture-leather: url(leather-greyscale.webp);
   --texture-paper: url(paper.webp);
+  --texture-purple-waves: url(waves.webp);
+  --reflection-matcap: url(reflection-matcap.webp);
 }

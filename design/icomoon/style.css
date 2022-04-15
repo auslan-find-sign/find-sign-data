@@ -15,6 +15,10 @@ Single-colored icons can be modified like so:
 }
 ========================================== */
 
+.icon-folder {
+  width: 1.091796875em;
+}
+
 .icon-3dglasses {
   width: 1.40625em;
 }

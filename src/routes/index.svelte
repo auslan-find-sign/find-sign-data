@@ -1,5 +1,5 @@
 <script lang=ts>
-  import MainBlock from '$lib/layout/MainBlock.svelte'
+  import MainBlock from '$lib/widgets/MainBlock.svelte'
   import ListSidebar from '$lib/widgets/ListSidebar.svelte'
   import MainWithSidebar from '$lib/layout/MainWithSidebar.svelte'
 </script>
