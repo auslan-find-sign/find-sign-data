@@ -1,4 +1,4 @@
-import { c as create_ssr_component, a as add_classes } from "../../chunks/index-94118fce.js";
+import { c as create_ssr_component, a as add_classes } from "../../chunks/index-9328c9de.js";
 /* empty css                            */var __layout_svelte_svelte_type_style_lang = "";
 const css = {
   code: "body{background-image:var(--texture-purple-waves);background-size:300px 300px}",

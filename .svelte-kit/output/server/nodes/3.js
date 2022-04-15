@@ -1,6 +1,6 @@
 import * as module from '../entries/pages/code-block.svelte.js';
 
 export { module };
-export const entry = 'pages/code-block.svelte-60591193.js';
-export const js = ["pages/code-block.svelte-60591193.js","chunks/index-40d8e6e8.js","chunks/CodeBlock-9513f1d7.js","chunks/Icon-347d076d.js","chunks/MainWithSidebar-2310653c.js"];
-export const css = ["assets/images-9f767e7b.css","assets/CodeBlock-b0c5bf3e.css","assets/Icon-34ff51e9.css","assets/MainWithSidebar-ad8bf1da.css"];
+export const entry = 'pages/code-block.svelte-4772f641.js';
+export const js = ["pages/code-block.svelte-4772f641.js","chunks/index-63fce611.js","chunks/CodeBlock-b1b64871.js","chunks/Icon-c351fa8a.js","chunks/MainBlock-8aade17e.js","chunks/ListSidebar-7d8d7625.js","chunks/MainWithSidebar-86148665.js"];
+export const css = ["assets/MainBlock.svelte_svelte_type_style_lang-d7982ed9.css","assets/images-bdec4d6a.css","assets/CodeBlock-32fb2f8d.css","assets/Icon-34ff51e9.css","assets/ListSidebar-76231a36.css","assets/MainWithSidebar-921f2fac.css"];

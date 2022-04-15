@@ -1,4 +1,4 @@
-import { sign } from 'tweetnacl'
+import { sign_keyPair } from 'tweetnacl-ts'
 import { expect, describe, it } from 'vitest'
 import * as auth from '../src/lib/functions/auth'
 import { byteArrayToHex } from '../src/lib/functions/binary-string'
@@ -33,7 +33,7 @@ describe.concurrent('binary string conversions', () => {
   it('verifyLicense', () => {
     const id = auth.createIdentity()
     const license = auth.createLicense(id)
-    const disallowList = [0,1,2,3,4,5].map(x => byteArrayToHex(sign.keyPair().publicKey))
+    const disallowList = [0,1,2,3,4,5].map(x => byteArrayToHex(sign_keyPair().publicKey))
     const yesAllowList = [...disallowList, id.split('-')[0]]
 
     expect(auth.verifyLicense(license, yesAllowList)).to.be.true

@@ -1,8 +1,8 @@
-import { c as create_ssr_component, v as validate_component } from "../../../chunks/index-94118fce.js";
-import { M as MainWithSidebar, L as ListSidebar, a as MainBlock } from "../../../chunks/MainWithSidebar-fd4910a5.js";
-import "../../../chunks/site-config-b274994e.js";
-import "../../../chunks/Icon-64ece6d3.js";
-/* empty css                               */const _layout = create_ssr_component(($$result, $$props, $$bindings, slots) => {
+import { c as create_ssr_component, v as validate_component } from "../../../chunks/index-9328c9de.js";
+/* empty css                                                                */import { L as ListSidebar } from "../../../chunks/ListSidebar-ab43ec0c.js";
+import { M as MainWithSidebar } from "../../../chunks/MainWithSidebar-c2d2c4b0.js";
+import "../../../chunks/Icon-678427fc.js";
+/* empty css                                                           *//* empty css                               */const _layout = create_ssr_component(($$result, $$props, $$bindings, slots) => {
   const links = Object.entries({
     "Login": "/identity/login",
     "Create Identity": "/identity/create"
@@ -16,11 +16,7 @@ import "../../../chunks/Icon-64ece6d3.js";
       }, {}, {})}`;
     },
     default: () => {
-      return `${validate_component(MainBlock, "MainBlock").$$render($$result, {}, {}, {
-        default: () => {
-          return `${slots.default ? slots.default({}) : ``}`;
-        }
-      })}`;
+      return `${slots.default ? slots.default({}) : ``}`;
     }
   })}`;
 });

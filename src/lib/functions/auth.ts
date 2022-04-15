@@ -1,4 +1,5 @@
-import { sign } from 'tweetnacl'
+// import { sign } from 'tweetnacl'
+import { sign, sign_open, sign_keyPair, sign_keyPair_fromSecretKey } from 'tweetnacl-ts'
 import { byteArrayToHex, byteArrayToString, hexToByteArray, stringToByteArray } from './binary-string'
 
 export type License = {
@@ -14,7 +15,7 @@ export type SignatureData = {
 
 // create an identity (secret key)
 export function createIdentity () {
-  const { publicKey, secretKey } = sign.keyPair()
+  const { publicKey, secretKey } = sign_keyPair()
   return [publicKey, secretKey].map(x => byteArrayToHex(x)).join('-')
 }
 
@@ -23,13 +24,13 @@ export function validateIdentity (identity: string): boolean {
   if (identity.length !== ((64 + 32) * 2) + 1) return false
   const [publicKeyStr, secretKeyStr] = identity.split('-')
   const secretKey = hexToByteArray(secretKeyStr)
-  return byteArrayToHex(sign.keyPair.fromSecretKey(secretKey).publicKey) === publicKeyStr
+  return byteArrayToHex(sign_keyPair_fromSecretKey(secretKey).publicKey) === publicKeyStr
 }
 
 // create a license (temporarily valid identity document signed with secret key)
 export function createLicense (identity: string, options?: { validFrom: Date, validTo: Date }): string {
   const [publicKey, secretKey] = identity.split('-').map(x => hexToByteArray(x))
-  if (secretKey.length !== sign.secretKeyLength) throw new Error('invalid secret key length')
+  if (secretKey.length !== 64) throw new Error('invalid secret key length')
 
   let validFrom = Date.now() - (1000 * 30) // past 30 seconds acceptable
   let validTo = Date.now() + (1000 * 120) // future 2 minutes acceptable
@@ -48,7 +49,7 @@ export function verifyLicense (license: string, allowList: string[]): boolean {
   if (!allowList.some(x => x.toUpperCase() === publicKeyStr.toUpperCase())) return false
 
   // at this point the key does seem to be included in the allow list, verify the signature
-  const signatureUnboxed = sign.open(hexToByteArray(signatureStr), hexToByteArray(publicKeyStr))
+  const signatureUnboxed = sign_open(hexToByteArray(signatureStr), hexToByteArray(publicKeyStr))
   if (!signatureUnboxed) return false // signature invalid
 
   // validate timestamp

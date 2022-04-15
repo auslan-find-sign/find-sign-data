@@ -1,4 +1,4 @@
-import { randomBytes } from 'tweetnacl'
+import { randomBytes } from 'tweetnacl-ts'
 import { expect, describe, it } from 'vitest'
 import { byteArrayToHex, byteArrayToString, hexToByteArray, stringToByteArray } from '../src/lib/functions/binary-string'
 
