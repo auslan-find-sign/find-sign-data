@@ -1,9 +1,13 @@
-import { expect, describe, it } from 'vitest'
+import { expect, describe, it, beforeAll } from 'vitest'
 import { nanoid } from 'nanoid'
 import * as io from '../src/lib/functions/io'
 import { byteArrayToString } from '../src/lib/functions/binary-string'
 
 describe.concurrent('storage io', () => {
+  beforeAll(async () => {
+    await io.initializeStorage()
+  })
+
   it('list', async () => {
     const folder = `#test-list-${nanoid()}`
     await io.writeUnique(folder, 'hello world', 'text/plain')

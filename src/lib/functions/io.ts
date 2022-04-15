@@ -163,3 +163,13 @@ export function isWithin (target: string, container: string): boolean {
   const containerOS = fileToOSPath(container)
   return targetOS.startsWith(containerOS + nodePath.sep)
 }
+
+export async function initializeStorage () {
+  try {
+    await fs.mkdir(siteConfig.data, { recursive: true })
+  } catch (err) {}
+
+  try {
+    await fs.mkdir(siteConfig.tempFolder, { recursive: true })
+  } catch (err) {}
+}
