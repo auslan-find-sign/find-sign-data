@@ -1,5 +1,6 @@
-import { byteArrayToHex, byteArrayToString } from '$lib/functions/binary-string'
+import { stringToByteArray } from '$lib/functions/binary-string'
 import { list, read, getInfo, isWithin } from '$lib/functions/io'
+import { nanoid } from 'nanoid'
 import { isValid, isAuthorized } from '../_auth'
 
 export async function get ({ params, request }) {
@@ -14,15 +15,61 @@ export async function get ({ params, request }) {
 
   if (stats.isFile) {
     const isText = stats.type.startsWith('text/') || stats.type.split(/[^a-z0-9]+/ig).includes('json')
-    return {
-      headers: {
-        'Content-Type': isText ? `${stats.type}; charset=utf-8` : stats.type,
-        'Content-Length': `${stats.size}`,
-        'Last-Modified': stats.lastModified.toUTCString(),
-        'Etag': stats.etag,
-      },
-      body: await read(dataPath)
+    const headers = {
+      'Accept-Ranges': 'bytes',
+      'Content-Type': isText ? `${stats.type}; charset=utf-8` : stats.type,
+      'Content-Length': `${stats.size}`,
+      'Last-Modified': stats.lastModified.toUTCString(),
+      'Etag': stats.etag,
     }
+
+    if (request.headers.has('Range')) {
+      // range request
+      const rangesStr = request.headers.get('Range').split('bytes=')[1]
+      const ranges = rangesStr.split(',').map(x => x.trim().split('-', 2).map(x => Number(x)))
+      if (ranges.length === 1) {
+        // requesting a single range
+        return {
+          status: 206,
+          headers: {
+            ...headers,
+            'Content-Range': `bytes ${ranges[0].join('-')}/${headers['Content-Length']}`,
+            'Content-Length': `${ranges[0][1] - ranges[0][0]}`
+          },
+          body: (await read(dataPath)).subarray(...ranges[0])
+        }
+      } else if (ranges.length > 1) {
+        // multipart response
+        const boundary = nanoid()
+        const data = await read(dataPath)
+        const bodies = []
+        const t = stringToByteArray
+
+        for (const range of ranges) {
+          bodies.push(t(`--${boundary}\r\n`))
+          bodies.push(t(`Content-Type: ${headers['Content-Type']}\r\n`))
+          bodies.push(t(`Content-Range: ${range[0]}-${range[1]}/${headers['Content-Length']}\r\n`))
+          bodies.push(t(`\r\n`))
+          bodies.push(data.subarray(range[0], range[1]))
+        }
+
+        const byteIter = function * () {
+          for (const section of bodies) yield * section
+        }
+        const body = new Uint8Array(byteIter())
+        return {
+          status: 206,
+          headers: {
+            ...headers,
+            'Content-Type': `multipart/byteranges; boundary=${boundary}`,
+            'Content-Length': `${body.byteLength}`
+          },
+          body: body
+        }
+      }
+    }
+    // return a normal request
+    return { headers, body: await read(dataPath) }
   } else {
     return {
       body: {

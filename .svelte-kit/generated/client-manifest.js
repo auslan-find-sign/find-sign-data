@@ -14,7 +14,7 @@ export const components = [
 ];
 
 export const dictionary = {
-	"": [[0, 9], [1]],
+	"": [[0, 9], [1], 1],
 	"code-block": [[0, 3], [1]],
 	"collections": [[0, 6], [1], 1],
 	"identity/create": [[0, 2, 7], [1]],
