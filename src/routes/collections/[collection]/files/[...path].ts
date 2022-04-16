@@ -1,4 +1,4 @@
-import { byteArrayToHex, byteArrayToString } from '$lib/functions/binary-string'
+import { byteArrayToString } from '$lib/functions/binary-string'
 import { list, read, getInfo, isWithin } from '$lib/functions/io'
 import { isValid, isAuthorized } from '../_auth'
 

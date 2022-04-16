@@ -23,7 +23,9 @@
     <p>
       <img src={securityOfficer} alt="Illustration of a bird holding some computer documents" />
       This repository contains all the data used to build auslan.fyi sites. This includes deep
-      frequent scrapes of many websites containing Auslan related information.
+      frequent scrapes of many websites containing Auslan related information. You'll also find
+      collections of manually labeled data, like subtitle tracks for Asphyxia videos, and data
+      for upcoming projects.
     </p>
   </MainBlock>
 </MainWithSidebar>

@@ -3,4 +3,7 @@
   --texture-paper: url(paper.webp);
   --texture-purple-waves: url(waves.webp);
   --reflection-matcap: url(reflection-matcap.webp);
+  --blue-rule: url(blue-rule.webp);
+  --blue-rule-border: url(blue-rule-border.webp) 12;
+  --red-rule-border: url(red-rule-border.webp) 12;
 }

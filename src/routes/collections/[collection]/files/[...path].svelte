@@ -16,6 +16,15 @@
   export let type: string | undefined = undefined
   export let isFile: boolean = false
 
+  // pretty printers
+  let displayContents = ''
+
+  $: if (type && type.split(/[^a-z0-9]/ig).includes('json')) {
+    displayContents = JSON.stringify(JSON.parse(contents), null, 2)
+  } else {
+    displayContents = contents
+  }
+
   $: highlightingType = type && {
     'application/json': 'json',
     'text/markdown': 'markdown',
@@ -23,21 +32,6 @@
     'application/xml': 'xml',
     'text/plain': 'none',
   }[type]
-
-  // $: sidebarItems = files && (files || peerFiles).map(x => ({
-  //   icon: x.isFolder ? 'folder' :
-  //     {
-  //       application: 'cassette',
-  //       image: 'picture',
-  //       video: 'film',
-  //       text: x.type === 'text/calendar' ? 'calendar' : 'file',
-  //       font: 'pictures',
-  //       audio: 'cassette',
-  //       model: 'cassette'
-  //     }[x.type.split('/')[0]],
-  //   label: x.name,
-  //   url: `/collections/${encodeURIComponent(collection)}/files/${x.path.split('/').slice(2).map(encodeURIComponent).join('/')}`
-  // }))
 </script>
 
 <Layout sidebar={false}>
@@ -56,7 +50,7 @@
       {:else if type.startsWith('audio/')}
         <audio src={contentsURL} type={type} controls></audio>
       {:else if type.startsWith('text/')}
-        <CodeBlock lang={highlightingType || 'none'} text={contents}/>
+        <CodeBlock lang={highlightingType || 'none'} text={displayContents}/>
       {:else}
         <p>
           TODO: implement a download thing on this page

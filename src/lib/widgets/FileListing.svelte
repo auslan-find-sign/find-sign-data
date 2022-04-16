@@ -30,7 +30,11 @@
         <!-- <td>{file.isFile ? file.type : 'Folder'}</td> -->
         <td>{bytes(file.size)}</td>
         <td>{friendlyDate(file.lastModified)}</td>
-        <td><a href={filePath(file, 'raw')} download><Icon name=out label=Download /></a></td>
+        <td>
+          {#if file.isFile}
+            <a href={filePath(file, 'raw')} download><Icon name=out label=Download /></a>
+          {/if}
+        </td>
       </tr>
     {/each}
   </tbody>
@@ -40,24 +44,34 @@
   table {
     display: grid;
     grid-template-columns: 1fr max-content max-content max-content;
-    margin-left: 0;
-    margin-right: 0;
-    width: 100%;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
   }
-  table thead, table tbody, table tr { display: contents; }
-  table thead td { border-bottom: 1px solid red; }
-  table td { padding: 1ex; }
-  table td:first-child { padding-left: 1em; }
-  table td:last-child { padding-right: 1em; }
-  table td:not(:first-child) { border-left: 1px solid green; }
-  tbody tr:nth-child(even) td { background-color: rgba(0, 0, 0, 0.066); }
-  table td:nth-child(1) { grid-column: 1; }
-  table td:nth-child(2) { grid-column: 2; }
-  table td:nth-child(3) { grid-column: 3; }
-  table td:nth-child(4) { grid-column: 4; }
-  table td:nth-child(5) { grid-column: 5; }
-  thead { border-bottom: 1px solid red; }
-  tbody td:last-child {
+  thead, tbody, tr { display: contents; }
+  /* table thead td { border-color: red; border-width: 1px; border-bottom-style: solid; } */
+  td { padding: 1ex; }
+  td:first-child { padding-left: 1em; }
+  td:last-child { padding-right: 1em; }
+  /* tbody tr:nth-child(even) td { background-color: rgba(0, 0, 0, 0.066); } */
+  td:nth-child(1) { grid-column: 1; }
+  td:nth-child(2) { grid-column: 2; }
+  td:nth-child(3) { grid-column: 3; }
+  td:nth-child(4) { grid-column: 4; }
+  td:nth-child(5) { grid-column: 5; }
+  /* thead { border-bottom: 1px solid red; } */
+  td:last-child {
     text-align: right;
+  }
+
+  td:not(:first-child) { border-left: 4px solid; }
+  td {
+    border-image: var(--blue-rule-border);
+    border-bottom: 4px solid;
+    border-width: 4px;
+  }
+
+  thead td {
+    border-image: var(--red-rule-border);
   }
 </style>
