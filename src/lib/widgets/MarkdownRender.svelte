@@ -1,6 +1,18 @@
 <script lang=ts>
   import CodeBlock from '$lib/widgets/CodeBlock.svelte'
   export let data
+
+  // remove the stupid html entity encoding the marked lexer adds
+  const entities = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'"
+  };
+  function disentity(text) {
+    return text.replace(/(&(amp|lt|gt|quot|#39);)/g, m => entities[m[1]] || m[0])
+  }
 </script>
 {#if data.type === 'paragraph'}
   <p>
@@ -11,7 +23,7 @@
     {#each data.tokens as token}<svelte:self data={token}/>{/each}
   </blockquote>
 {:else if data.type === 'code'}
-  <CodeBlock lang={data.lang || 'none'} text={data.text}/>
+  <CodeBlock lang={data.lang || 'none'} text={disentity(data.text)}/>
 {:else if data.type === 'heading'}
   {#if data.depth === 1}
     <h1>{#each data.tokens as token}<svelte:self data={token}/>{/each}</h1>
@@ -45,9 +57,9 @@
 {:else if data.type === 'image'}
   <img src={data.href} alt={data.title}>
 {:else if data.type === 'html'
-}{data.text}{
+  }{disentity(data.text)}{
 :else if data.type === 'text'
-  }{data.text}{
+  }{disentity(data.text)}{
 :else if data.type === 'link'
   }<a href={data.href} title={data.title} referrerpolicy="no-referrer">{#each data.tokens as token}<svelte:self data={token}/>{/each}</a>{
 :else if data.type === 'strong'
@@ -57,7 +69,7 @@
 :else if data.type === 'del'
   }<del>{#each data.tokens as token}<svelte:self data={token}/>{/each}</del>{
 :else if data.type === 'codespan'
-  }<code>{data.text}</code>{
+  }<code>{disentity(data.text)}</code>{
 :else if data.type === 'br'
   }<br>{
 /if}
