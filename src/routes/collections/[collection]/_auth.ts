@@ -12,15 +12,17 @@ export function isValid (params) {
   if (params.collection.includes('\\')) return false
   if (params.collection.length > 128) return false
 
-  if (typeof params.path !== 'string') return false
-  if (params.path.length > 512) return false
-  if (params.path.split('/').length > 8) return false
-  if (params.path.startsWith('/')) return false
-  if (params.path.startsWith('.')) return false
-  if (params.path.startsWith('#')) return false
-  if (params.path.includes('\\')) return false
-  if (params.path.includes('/.')) return false
-  if (params.path.includes('/#')) return false
+  if ('path' in params) {
+    if (typeof params.path !== 'string') return false
+    if (params.path.length > 512) return false
+    if (params.path.split('/').length > 8) return false
+    if (params.path.startsWith('/')) return false
+    if (params.path.startsWith('.')) return false
+    if (params.path.startsWith('#')) return false
+    if (params.path.includes('\\')) return false
+    if (params.path.includes('/.')) return false
+    if (params.path.includes('/#')) return false
+  }
 
   return true
 }
@@ -29,7 +31,7 @@ export async function isAuthorized (params, request: Request) {
   const collectionPath = `collections/${params.collection}`
 
   const isPrivate = await exists(`${collectionPath}/#private`, 'file')
-  const isWrite = request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE'
+  const isWrite = request.method !== 'HEAD' && request.method !== 'GET'
 
   if (isPrivate || isWrite) {
     const url = new URL(request.url)

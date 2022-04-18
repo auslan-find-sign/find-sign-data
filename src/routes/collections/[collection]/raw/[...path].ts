@@ -1,9 +1,10 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, read, getInfo, isWithin } from '$lib/functions/io'
+import { list, read, getInfo, isWithin, write, remove } from '$lib/functions/io'
+import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { isValid, isAuthorized } from '../_auth'
 
-export async function get ({ params, request }) {
+export const get: RequestHandler = async function ({ params, request }) {
   const dataPath = `collections/${params.collection}/${params.path}`
 
   // validations
@@ -77,4 +78,36 @@ export async function get ({ params, request }) {
       }
     }
   }
+}
+
+// create file or replace it's contents
+export const put: RequestHandler = async function ({ params, request }) {
+  const dataPath = `collections/${params.collection}/${params.path}`
+
+  if (!isValid(params)) return { status: 500 }
+  if (!isWithin(dataPath, `collections/${params.collection}`)) return { status: 500 }
+  if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
+
+  await write(dataPath, new Uint8Array(await request.arrayBuffer()))
+  const stats = await getInfo(dataPath)
+
+  return {
+    status: 204, // No Content
+    headers: {
+      'ETag': stats.etag,
+      'Last-Modified': stats.lastModified.toUTCString()
+    }
+  }
+}
+
+// create file or replace it's contents
+export const del: RequestHandler = async function ({ params, request }) {
+  const dataPath = `collections/${params.collection}/${params.path}`
+
+  if (!isValid(params)) return { status: 500 }
+  if (!isWithin(dataPath, `collections/${params.collection}`)) return { status: 500 }
+  if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
+
+  await remove(dataPath)
+  return { status: 204 }
 }

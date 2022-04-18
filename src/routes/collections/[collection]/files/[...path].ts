@@ -14,7 +14,7 @@ export async function get ({ params, request }) {
 
   if (stats.isFile) {
     const contents = await read(dataPath)
-    const textTypes = ['text', 'json', 'yaml', 'xml', 'svg']
+    const textTypes = ['text', 'json', 'yaml', 'xml', 'svg', 'subrip']
     const plaintext = stats.type.split(/[^a-zA-Z0-9]+/g).some(x => textTypes.includes(x.toLowerCase()))
 
     return {

@@ -40,13 +40,7 @@
     displayContents = contents
   }
 
-  $: highlightingType = type && {
-    'application/json': 'json',
-    'text/markdown': 'markdown',
-    'text/yaml': 'yaml',
-    'application/xml': 'xml',
-    'text/plain': 'none',
-  }[type]
+  $: isText = typeof contents === 'string'
 </script>
 
 <Layout sidebar={false}>
@@ -64,8 +58,8 @@
         <img src={contentsURL} type={type}>
       {:else if type.startsWith('audio/')}
         <audio src={contentsURL} type={type} controls></audio>
-      {:else if type.startsWith('text/')}
-        <CodeBlock lang={highlightingType || 'none'} text={displayContents}/>
+      {:else if isText}
+        <CodeBlock lang={type || 'none'} text={displayContents}/>
       {:else}
         <p>
           TODO: implement a download thing on this page

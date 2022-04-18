@@ -11,7 +11,7 @@
   export let readmeMarkdown = ''
 
   function encodePath (path: string) {
-    return path.split('/').map(x => encodeURIComponent(x)).join('/')
+    return path.split('/').slice(2).map(x => encodeURIComponent(x)).join('/')
   }
 
   $: sidebarItems = files.map(x => ({
