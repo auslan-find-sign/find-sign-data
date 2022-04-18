@@ -153,7 +153,7 @@ export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
     isFolder: stats.isDirectory(),
     lastModified: stats.mtime,
     created: stats.ctime,
-    etag: `${Math.round(stats.mtimeMs).toString(36)}:${stats.ino}:${stats.size}`
+    etag: `"${Math.round(stats.mtimeMs).toString(36)}:${stats.ino}:${stats.size}"`
   }
 }
 
