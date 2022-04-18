@@ -3,13 +3,20 @@
   import { friendly as friendlyDate } from '$lib/functions/date'
   import { bytes } from '$lib/functions/size'
   import Icon from '$lib/Icon.svelte'
+  import { count } from '$lib/functions/iterables'
+  import uri, { raw } from 'uri-tag'
 
   export let collection:string
   export let files:FileInfoJSON[] = []
+  export let currentPage = 0
+
+  const filesPerPage = 250
+  $: pageCount = Math.ceil(files.length / filesPerPage)
+  $: files, currentPage = 0 // reset pagenum if listing changes
 
   function filePath (file: FileInfoJSON, mode: 'files' | 'raw') {
-    const subpath = file.path.split('/').slice(2).map(x => encodeURIComponent(x)).join('/')
-    return `/collections/${encodeURIComponent(collection)}/${mode}/${subpath}`
+    const subpath = file.path.split('/').slice(2).map(x => uri`${x}`).join('/')
+    return uri`/collections/${collection}/${mode}/${raw(subpath)}`
   }
 </script>
 
@@ -24,7 +31,7 @@
     </tr>
   </thead>
   <tbody>
-    {#each files as file (file.path)}
+    {#each files.slice(currentPage * filesPerPage, (currentPage + 1) * filesPerPage) as file (file.path)}
       <tr>
         <td><a href={filePath(file, 'files')}>{decodeURIComponent(file.name)}</a></td>
         <!-- <td>{file.isFile ? file.type : 'Folder'}</td> -->
@@ -39,6 +46,18 @@
     {/each}
   </tbody>
 </table>
+
+{#if pageCount > 1}
+  <div class=pagination>
+    Page:
+    {#each [...count(pageCount)] as pageNumber}
+      <a href="#page-{pageNumber}"
+         aria-current={pageNumber === currentPage ? 'page' : false}
+         on:click={event => { event.preventDefault(); currentPage = pageNumber; window.scrollTo(0, 0) }}
+      >{pageNumber + 1}</a>
+    {/each}
+  </div>
+{/if}
 
 <style>
   table {
@@ -73,5 +92,18 @@
 
   thead td {
     border-image: var(--red-rule-border);
+  }
+  thead td:not(:first-child) {
+    text-align: center;
+  }
+
+  .pagination a {
+    margin-right: 1ex;
+  }
+
+  .pagination a[aria-current=page] {
+    cursor: normal;
+    color: inherit;
+    text-decoration: inherit;
   }
 </style>
