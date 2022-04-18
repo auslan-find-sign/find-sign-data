@@ -13,7 +13,7 @@
 
 <MainBlock title={title}>
   <h1>New Cryptographic Identity:</h1>
-  <CodeBlock lang='text/plain' text={identity}/>
+  <CodeBlock lang="none" text={identity}/>
   <p>
     Be sure to keep it somewhere safe, like a password manager.
   </p>

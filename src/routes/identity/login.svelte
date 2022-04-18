@@ -1,5 +1,6 @@
 <script lang=ts>
-import { validateIdentity } from '$lib/functions/auth';
+  import { validateIdentity } from '$lib/functions/auth'
+  import identity from '$lib/functions/identity-store'
 
   import MainBlock from '$lib/widgets/MainBlock.svelte'
   export const title = 'Login with Identity'
@@ -7,6 +8,7 @@ import { validateIdentity } from '$lib/functions/auth';
   let identityString = ''
 
   $: valid = validateIdentity(identityString)
+  $: valid && ($identity = identityString)
 </script>
 
 <MainBlock title={title}>
