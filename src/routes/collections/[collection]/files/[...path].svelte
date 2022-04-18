@@ -1,7 +1,22 @@
-<!-- <script context="module">
-  export const hydrate = false
-  export const router = false
-</script> -->
+<script lang=ts context=module>
+  // export const hydrate = false
+  // export const router = false
+  import uri from 'uri-tag'
+
+  export async function load ({ props, params, stuff }) {
+    const pathParts = params.path.split('/').map(x => decodeURIComponent(x))
+    const crumbs = []
+    pathParts.forEach((name, index) => {
+      crumbs.push([
+        name,
+        uri`/collections/${params.collection}/files/`
+         + [...crumbs.slice(0, index), name].map(x => encodeURIComponent(x)).join('/')
+      ])
+    })
+
+    return { props, stuff: { crumbs: [...stuff.crumbs, ...crumbs] } }
+  }
+</script>
 <script lang=ts>
   import Main from '$lib/widgets/MainBlock.svelte'
   import Layout from '$lib/layout/MainWithSidebar.svelte'

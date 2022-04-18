@@ -11,5 +11,7 @@ declare namespace App {
 
 	// interface Session {}
 
-	// interface Stuff {}
+	interface Stuff {
+		crumbs: [label: string, link: string][]
+	}
 }
