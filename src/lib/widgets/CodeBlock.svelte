@@ -2,13 +2,14 @@
   import { browser } from '$app/env'
   import Icon from '$lib/Icon.svelte'
   import delay from '$lib/functions/delay'
-  // import { codeToLines } from '$lib/functions/prism-utils'
+  import '$lib/assets/images.css'
 
   import hljs from 'highlight.js/lib/core'
   import hlJSON from 'highlight.js/lib/languages/json'
   import hlYAML from 'highlight.js/lib/languages/yaml'
   import hlXML from 'highlight.js/lib/languages/xml'
   import hlMD from 'highlight.js/lib/languages/markdown'
+  import hlText from 'highlight.js/lib/languages/plaintext'
 
   hljs.registerLanguage('json', hlJSON)
   hljs.registerAliases('application/json', { languageName: 'json' })
@@ -21,6 +22,10 @@
   hljs.registerLanguage('markdown', hlMD)
   hljs.registerAliases('md', { languageName: 'markdown' })
   hljs.registerAliases('text/markdown', { languageName: 'markdown' })
+  hljs.registerLanguage('txt', hlText)
+  hljs.registerAliases('text', { languageName: 'txt' })
+  hljs.registerAliases('text/plain', { languageName: 'txt' })
+  hljs.registerAliases('application/x-subrip', { languageName: 'txt' })
 
   export let lang = 'none'
   export let text = ''
@@ -30,8 +35,7 @@
   const maxLength = 64 * 1024
   $: highlight = text.length < maxLength && lang && lang !== 'none'
   $: hljsOutput = highlight && hljs.highlight(text, { language: lang, ignoreIllegals: true })
-  $: lines = (hljsOutput ? hljsOutput.value : text).split(/\r|\n|r\n/gmi)
-  $: gutterDigits = lines && lines.length.toString().length
+  $: lines = (hljsOutput ? hljsOutput.value : text).replace('\r\n', '\n').split('\n')
 
   const hasGutter = true
   $: lineNumbers = lines.map((html, idx) => (idx + 1).toString())
@@ -63,6 +67,15 @@
 </div>
 
 <style>
+  .code-block {
+    --gloss: hsl(95, 70%, 97%);
+    background-image: linear-gradient(var(--gloss), var(--gloss)), var(--circuit-texture);
+    background-size: 101% 101%, 180px 180px;
+    background-position: center center, center center;
+    background-repeat: no-repeat, repeat;
+    background-blend-mode: screen, normal;
+  }
+
   /* site styling */
   .code-block {
     /*  theme: FlatUI Dark */

@@ -6,4 +6,5 @@
   --blue-rule: url(blue-rule.webp);
   --blue-rule-border: url(blue-rule-border.webp) 12;
   --red-rule-border: url(red-rule-border.webp) 12;
+  --circuit-texture: url(circuit-texture.svg);
 }
