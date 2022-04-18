@@ -22,7 +22,7 @@
     <ul>
       {#each itemObjects as { label, url, icon } (url)}
         <li aria-current={(new URL(url, $page.url)).toString() === $page.url.toString().split('?')[0] ? 'page' : undefined}>
-          <a href={url}><Icon name={icon}/> <span>{label}</span></a>
+          <Icon name={icon}/> <a href={url}>{label}</a>
         </li>
       {/each}
     </ul>
@@ -92,20 +92,5 @@
 
   nav ul li {
     margin-top: 0.1rem;
-  }
-
-  nav ul li a {
-    text-decoration: inherit;
-    color: inherit;
-  }
-
-  nav ul li[aria-current] a span {
-    text-decoration: underline;
-    text-overflow: ellipsis;
-    cursor: default;
-  }
-
-  nav ul li:hover a span {
-    text-decoration: underline;
   }
 </style>
