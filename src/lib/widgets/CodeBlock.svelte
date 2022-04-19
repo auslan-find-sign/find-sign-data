@@ -37,8 +37,8 @@
   $: hljsOutput = highlight && hljs.highlight(text, { language: lang, ignoreIllegals: true })
   $: lines = (hljsOutput ? hljsOutput.value : text).replace('\r\n', '\n').split('\n')
 
-  const hasGutter = true
-  $: lineNumbers = lines.map((html, idx) => (idx + 1).toString())
+  const hasGutter = highlight
+  $: lineNumbers = hasGutter && lines.map((html, idx) => (idx + 1).toString())
   // $: lineData = highlight && codeToLines(text, lang)
   // $: hasGutter = lineNumbers && lineData && lineData.lines.length < 5000
 
