@@ -29,3 +29,8 @@ Keys are to be tweetnacl sign publickeys, which are 32 bytes (64 chars) long.
 If this empty file exists, the collection is considered private, in which case it is
 only readable by users with one of the keys in the keys.json file. If this file is
 absent, the collection is considered public and read access is available to any web user.
+
+### `#assets` folder
+
+If this folder exists, it is publically available for rendering readme contents.
+It might contain images for example.
