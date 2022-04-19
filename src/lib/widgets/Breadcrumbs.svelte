@@ -1,6 +1,9 @@
 <script lang=ts>
+  import { browser } from '$app/env'
   import { page } from '$app/stores'
-import identity from '$lib/functions/identity-store'
+  import identity from '$lib/functions/identity-store'
+  import Icon from '$lib/Icon.svelte'
+
   export let crumbs:[string, string][] = []
 </script>
 
@@ -17,10 +20,13 @@ import identity from '$lib/functions/identity-store'
   </ol>
 
   <div>
-    {#if $identity}
-      <a href=/identity/logout>Logout</a>
-    {:else}
-      <a href=/identity/login>Login</a>
+    {#if browser}
+      <Icon name="user-circle"/>&nbsp;
+      {#if $identity}
+        <a href=/identity/logout>Logout</a>
+      {:else}
+        <a href=/identity/login>Login</a>
+      {/if}
     {/if}
   </div>
 </nav>
