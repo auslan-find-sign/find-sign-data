@@ -4,6 +4,7 @@
   import ListSidebar from '$lib/widgets/ListSidebar.svelte'
   import FileListing from '$lib/widgets/FileListing.svelte'
   import Markdown from '$lib/widgets/Markdown.svelte'
+import EditControls from '$lib/widgets/EditControls.svelte';
 
   export let collection = ''
   export let files = []
@@ -34,6 +35,7 @@
   <ListSidebar slot="sidebar" title="Files" icon="" items={sidebarItems} />
   <Main title="Collection: {collection}">
     <h1>Files</h1>
+    <EditControls {collection}/>
     <FileListing {files} {collection} />
     {#if hasReadme}
       <Markdown markdown={readmeMarkdown}/>
