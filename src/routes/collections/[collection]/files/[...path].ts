@@ -1,13 +1,17 @@
 import { byteArrayToString } from '$lib/functions/binary-string'
 import { list, read, getInfo, isWithin } from '$lib/functions/io'
 import { isValid, isAuthorized } from '../_auth'
+import { decodeCollectionURLPath } from '$lib/functions/collection-url'
+import type { RequestHandler } from '@sveltejs/kit'
 
-export async function get ({ params, request }) {
-  const dataPath = `collections/${params.collection}/${params.path}`
+export const get: RequestHandler = async function get ({ request }) {
+  const params = decodeCollectionURLPath((new URL(request.url)).pathname)
+  const { collection, path } = params
+  const dataPath = `collections/${collection}/${path}`
 
   // validations
   if (!isValid(params)) return { status: 500 }
-  if (!isWithin(dataPath, `collections/${params.collection}`)) return { status: 500 }
+  if (!isWithin(dataPath, `collections/${collection}`)) return { status: 500 }
   if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
 
   const stats = await getInfo(dataPath)

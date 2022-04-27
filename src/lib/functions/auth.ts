@@ -28,7 +28,7 @@ export function validateIdentity (identity: string): boolean {
 }
 
 // create a license (temporarily valid identity document signed with secret key)
-export function createLicense (identity: string, options?: { validFrom: Date, validTo: Date }): string {
+export function createLicense (identity: string, options?: { validFrom?: Date, validTo?: Date }): string {
   const [publicKey, secretKey] = identity.split('-').map(x => hexToByteArray(x))
   if (secretKey.length !== 64) throw new Error('invalid secret key length')
 

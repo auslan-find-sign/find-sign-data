@@ -19,7 +19,8 @@
   const links = Object.entries({
     'Login': '/identity/login',
     'Logout': '/identity/logout',
-    'Create Identity': '/identity/create'
+    'Create Identity': '/identity/create',
+    'Issue License': '/identity/license'
   })
 </script>
 

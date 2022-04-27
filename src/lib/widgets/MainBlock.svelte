@@ -29,6 +29,8 @@
   main h1.title {
     font-size: 1.5rem;
     --leather-tint: rgb(69, 33, 122);
+    font-weight: 400;
+    font-variation-settings: "wght" 400;
     padding: 0.3rem 1rem;
     margin: 0 0 1rem 0;
     background: linear-gradient(var(--leather-tint), var(--leather-tint)), var(--texture-leather);

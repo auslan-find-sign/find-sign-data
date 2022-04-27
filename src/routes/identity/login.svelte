@@ -5,7 +5,7 @@
   import MainBlock from '$lib/widgets/MainBlock.svelte'
   export const title = 'Login with Identity'
 
-  let identityString = ''
+  let identityString = $identity
 
   $: valid = validateIdentity(identityString)
   $: valid && ($identity = identityString)
@@ -19,6 +19,12 @@
   <input type=password bind:value={identityString}>
 
   <p>
-    Identity field is: {valid ? 'valid' : identityString.length === 0 ? 'empty' : 'invalid'}
+    Identity field is: {valid ? 'valid' : identityString && identityString.length === 0 ? 'empty' : 'invalid'}
   </p>
+
+  {#if valid}
+  <p>
+    Your public key is <code>{identityString && identityString.split('-')[0]}</code>
+  </p>
+  {/if}
 </MainBlock>

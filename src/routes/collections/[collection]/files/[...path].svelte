@@ -3,13 +3,13 @@
   // export const router = false
   import uri from 'uri-tag'
 
-  export async function load ({ props, params, stuff }) {
-    const pathParts = params.path.split('/').map(x => decodeURIComponent(x))
+  export async function load ({ props, stuff }) {
+    const pathParts = props.path.split('/').map(x => decodeURIComponent(x))
     const crumbs = []
     pathParts.forEach((name, index) => {
       crumbs.push([
         name,
-        uri`/collections/${params.collection}/files/`
+        uri`/collections/${props.collection}/files/`
          + [...crumbs.slice(0, index), name].map(x => encodeURIComponent(x)).join('/')
       ])
     })
@@ -20,8 +20,10 @@
 <script lang=ts>
   import Main from '$lib/widgets/MainBlock.svelte'
   import Layout from '$lib/layout/MainWithSidebar.svelte'
+  import EditControls from '$lib/widgets/EditControls.svelte'
   import FileListing from '$lib/widgets/FileListing.svelte'
   import CodeBlock from '$lib/widgets/CodeBlock.svelte'
+  import Markdown from '$lib/widgets/Markdown.svelte'
 
   export let collection: string
   export let files = undefined
@@ -33,6 +35,7 @@
 
   // pretty printers
   let displayContents = ''
+  let isWritable: boolean
 
   $: if (type && type.split(/[^a-z0-9]/ig).includes('json')) {
     displayContents = JSON.stringify(JSON.parse(contents), null, 2)
@@ -40,14 +43,15 @@
     displayContents = contents
   }
 
-  $: isText = typeof contents === 'string'
+  $: filename = path.split('/').slice(-1)[0]
 </script>
 
 <Layout sidebar={false}>
-  <Main title="Collection: {collection}/{path}">
+  <Main title={filename}>
     {#if files}
       <h1>Files</h1>
-      <FileListing {files} {collection} />
+      <EditControls {collection} {path} bind:isWritable />
+      <FileListing {files} {collection} {isWritable} />
     {/if}
     {#if isFile}
       {#if type.startsWith('video/')}
@@ -58,13 +62,17 @@
         <img src={contentsURL} type={type}>
       {:else if type.startsWith('audio/')}
         <audio src={contentsURL} type={type} controls></audio>
-      {:else if isText}
+      {:else if type === 'text/markdown'}
+        <Markdown markdown={contents}/>
+      {:else if contents}
         <CodeBlock lang={type || 'none'} text={displayContents}/>
       {:else}
         <p>
           TODO: implement a download thing on this page
         </p>
       {/if}
+
+      <p><a href={contentsURL} download={filename}>Download</a></p>
     {/if}
   </Main>
 </Layout>

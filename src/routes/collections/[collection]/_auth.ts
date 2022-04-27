@@ -27,6 +27,21 @@ export function isValid (params) {
   return true
 }
 
+export async function isWritable (params, request: Request) {
+  const collectionPath = `collections/${params.collection}`
+
+  if (await exists(`${collectionPath}/#keys.json`)) {
+    const url = new URL(request.url)
+    const basicAuth = decodeBasicAuth(request)
+    const license = url.searchParams.has('license') ? url.searchParams.get('license') : basicAuth && basicAuth.username === 'license' ? basicAuth.password : undefined
+    if (license) {
+      const allowList = Object.keys(JSON.parse(byteArrayToString(await read(`${collectionPath}/#keys.json`))))
+      return verifyLicense(license, allowList)
+    }
+  }
+  return false
+}
+
 export async function isAuthorized (params, request: Request) {
   const collectionPath = `collections/${params.collection}`
 
@@ -34,15 +49,7 @@ export async function isAuthorized (params, request: Request) {
   const isWrite = request.method !== 'HEAD' && request.method !== 'GET'
 
   if (isPrivate || isWrite) {
-    const url = new URL(request.url)
-    const basicAuth = decodeBasicAuth(request)
-    const license = basicAuth && basicAuth.username === 'license' ? basicAuth.password : url.searchParams.get('license')
-    if (license && await exists(`${collectionPath}/#keys.json`)) {
-      const allowList = Object.keys(byteArrayToString(await read(`${collectionPath}/#keys.json`)))
-      return verifyLicense(license, allowList)
-    } else {
-      return false
-    }
+    return isWritable(params, request)
   } else {
     return true
   }

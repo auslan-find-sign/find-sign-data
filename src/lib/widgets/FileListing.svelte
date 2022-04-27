@@ -5,10 +5,12 @@
   import Icon from '$lib/Icon.svelte'
   import { count } from '$lib/functions/iterables'
   import uri, { raw } from 'uri-tag'
+  import { method } from '$lib/functions/actions'
 
   export let collection:string
   export let files:FileInfoJSON[] = []
   export let currentPage = 0
+  export let isWritable: boolean = false
 
   const filesPerPage = 250
   $: pageCount = Math.ceil(files.length / filesPerPage)
@@ -18,26 +20,38 @@
     const subpath = file.path.split('/').slice(2).map(x => uri`${x}`).join('/')
     return uri`/collections/${collection}/${mode}/${raw(subpath)}`
   }
+
+  function iconForType (type: string): string {
+    if (type.startsWith('image/')) return 'picture'
+    if (type.startsWith('video/')) return 'film'
+    if (type === 'text/calendar') return 'calendar'
+    if (type.startsWith('text/')) return 'file'
+    if (type.startsWith('audio/')) return 'cassette'
+    if (type.startsWith('model/')) return '3dglasses'
+    if (type === 'application/zip') return 'zip'
+    return 'file'
+  }
 </script>
 
 <table>
   <thead>
     <tr>
       <td>Filename</td>
-      <!-- <td>Type</td> -->
       <td>Size</td>
       <td>Modified</td>
-      <td>Download</td>
+      <td>{isWritable ? 'Actions' : 'Download'}</td>
     </tr>
   </thead>
   <tbody>
     {#each files.slice(currentPage * filesPerPage, (currentPage + 1) * filesPerPage) as file (file.path)}
       <tr>
-        <td><a href={filePath(file, 'files')}>{decodeURIComponent(file.name)}</a></td>
-        <!-- <td>{file.isFile ? file.type : 'Folder'}</td> -->
+        <td><a href={filePath(file, 'files')}><Icon name={iconForType(file.type)}/>{decodeURIComponent(file.name)}</a></td>
         <td>{bytes(file.size)}</td>
         <td>{friendlyDate(file.lastModified)}</td>
         <td>
+          {#if isWritable}
+            <a href={filePath(file, 'raw')} use:method={'delete'}><Icon name=trashcan label=Delete /></a>
+          {/if}
           {#if file.isFile}
             <a href={filePath(file, 'raw')} download><Icon name=out label=Download /></a>
           {/if}

@@ -2,14 +2,17 @@ import { stringToByteArray } from '$lib/functions/binary-string'
 import { list, read, getInfo, isWithin, write, remove } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
+import { decodeCollectionURLPath } from '$lib/functions/collection-url'
 import { isValid, isAuthorized } from '../_auth'
 
-export const get: RequestHandler = async function ({ params, request }) {
-  const dataPath = `collections/${params.collection}/${params.path}`
+export const get: RequestHandler = async function ({ request }) {
+  const params = decodeCollectionURLPath((new URL(request.url)).pathname)
+  const { collection, path } = params
+  const dataPath = `collections/${collection}/${path}`
 
   // validations
   if (!isValid(params)) return { status: 500 }
-  if (!isWithin(dataPath, `collections/${params.collection}`)) return { status: 500 }
+  if (!isWithin(dataPath, `collections/${collection}`)) return { status: 500 }
   if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
 
   const stats = await getInfo(dataPath)
@@ -81,11 +84,13 @@ export const get: RequestHandler = async function ({ params, request }) {
 }
 
 // create file or replace it's contents
-export const put: RequestHandler = async function ({ params, request }) {
-  const dataPath = `collections/${params.collection}/${params.path}`
+export const put: RequestHandler = async function ({ request }) {
+  const params = decodeCollectionURLPath((new URL(request.url)).pathname)
+  const { collection, path } = params
+  const dataPath = `collections/${collection}/${path}`
 
   if (!isValid(params)) return { status: 500 }
-  if (!isWithin(dataPath, `collections/${params.collection}`)) return { status: 500 }
+  if (!isWithin(dataPath, `collections/${collection}`)) return { status: 500 }
   if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
 
   await write(dataPath, new Uint8Array(await request.arrayBuffer()))
@@ -101,11 +106,13 @@ export const put: RequestHandler = async function ({ params, request }) {
 }
 
 // create file or replace it's contents
-export const del: RequestHandler = async function ({ params, request }) {
-  const dataPath = `collections/${params.collection}/${params.path}`
+export const del: RequestHandler = async function ({ request }) {
+  const params = decodeCollectionURLPath((new URL(request.url)).pathname)
+  const { collection, path } = params
+  const dataPath = `collections/${collection}/${path}`
 
   if (!isValid(params)) return { status: 500 }
-  if (!isWithin(dataPath, `collections/${params.collection}`)) return { status: 500 }
+  if (!isWithin(dataPath, `collections/${collection}`)) return { status: 500 }
   if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
 
   await remove(dataPath)
