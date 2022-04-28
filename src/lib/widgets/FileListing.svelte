@@ -4,8 +4,8 @@
   import { bytes } from '$lib/functions/size'
   import Icon from '$lib/Icon.svelte'
   import { count } from '$lib/functions/iterables'
-  import uri, { raw } from 'uri-tag'
   import { method } from '$lib/functions/actions'
+  import { encodeCollectionURLPath } from '$lib/functions/collection-url'
 
   export let collection:string
   export let files:FileInfoJSON[] = []
@@ -17,8 +17,7 @@
   $: files, currentPage = 0 // reset pagenum if listing changes
 
   function filePath (file: FileInfoJSON, mode: 'files' | 'raw') {
-    const subpath = file.path.split('/').slice(2).map(x => uri`${x}`).join('/')
-    return uri`/collections/${collection}/${mode}/${raw(subpath)}`
+    return encodeCollectionURLPath(collection, mode, file.path)
   }
 
   function iconForType (type: string): string {

@@ -3,14 +3,13 @@
   import { createLicense } from '$lib/functions/auth'
   import identity from '$lib/functions/identity-store'
   import Icon from '$lib/Icon.svelte'
-  import uri from 'uri-tag'
 
   export let collection: string
   export let path: string
   export let isWritable: boolean
 
   async function checkLockedStatus (collection): Promise<boolean> {
-    const response = await fetch(uri`/collections/${collection}/verify-key?license=${createLicense($identity)}`)
+    const response = await fetch(`/collections/${encodeURIComponent(collection)}/verify-key?license=${createLicense($identity)}`)
     const body = await response.json()
     isWritable = body.writable
     return body.writable

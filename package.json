@@ -48,7 +48,6 @@
     "prismjs-components-importer": "^0.1.0",
     "string-natural-compare": "^3.0.1",
     "tiny-function-queue": "^1.0.1",
-    "tweetnacl-ts": "^1.0.3",
-    "uri-tag": "^1.4.1"
+    "tweetnacl-ts": "^1.0.3"
   }
 }

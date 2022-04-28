@@ -7,13 +7,12 @@
   import MainWithSidebar from '$lib/layout/MainWithSidebar.svelte'
   import securityOfficer from '$lib/assets/security-officer.png'
   import sig from '$lib/assets/minisig.png'
-  import uri from 'uri-tag'
 
   export let collections = []
 
   let sidebarItems: [string, string][]
   $: sidebarItems = collections.map(collection =>
-    [collection, uri`/collections/${collection}`]
+    [collection, `/collections/${encodeURIComponent(collection)}`]
   )
 </script>
 

@@ -1,7 +1,6 @@
 <script lang=ts context=module>
   // export const hydrate = false
   // export const router = false
-  import uri from 'uri-tag'
 
   export async function load ({ props, stuff }) {
     const pathParts = props.path.split('/').map(x => decodeURIComponent(x))
@@ -9,8 +8,8 @@
     pathParts.forEach((name, index) => {
       crumbs.push([
         name,
-        uri`/collections/${props.collection}/files/`
-         + [...crumbs.slice(0, index), name].map(x => encodeURIComponent(x)).join('/')
+        `/collections/${encodeURIComponent(props.collection)}/files/`
+         + [...crumbs.slice(0, index), name].map(encodeURIComponent).join('/')
       ])
     })
 
