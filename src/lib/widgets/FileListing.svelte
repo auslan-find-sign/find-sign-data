@@ -17,7 +17,7 @@
   $: files, currentPage = 0 // reset pagenum if listing changes
 
   function filePath (file: FileInfoJSON, mode: 'files' | 'raw') {
-    return encodeCollectionURLPath(collection, mode, file.path)
+    return encodeCollectionURLPath(collection, mode, file.path.split('/').slice(2).join('/'))
   }
 
   function iconForType (type: string): string {
