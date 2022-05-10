@@ -9,7 +9,7 @@
       crumbs.push([
         name,
         `/collections/${encodeURIComponent(props.collection)}/files/`
-         + [...crumbs.slice(0, index), name].map(encodeURIComponent).join('/')
+         + [...pathParts.slice(0, index), name].map(encodeURIComponent).join('/')
       ])
     })
 
