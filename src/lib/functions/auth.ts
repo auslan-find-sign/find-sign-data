@@ -1,4 +1,3 @@
-// import { sign } from 'tweetnacl'
 import { sign, sign_open, sign_keyPair, sign_keyPair_fromSecretKey } from 'tweetnacl-ts'
 import { byteArrayToHex, byteArrayToString, hexToByteArray, stringToByteArray } from './binary-string'
 
@@ -35,7 +34,7 @@ export function createLicense (identity: string, options?: { validFrom?: Date, v
   let validFrom = Date.now() - (1000 * 30) // past 30 seconds acceptable
   let validTo = Date.now() + (1000 * 120) // future 2 minutes acceptable
   if (options && options.validFrom) validFrom = options.validFrom.getTime()
-  if (options && options.validFrom) validTo = options.validTo.getTime()
+  if (options && options.validTo) validTo = options.validTo.getTime()
   const message = stringToByteArray([validFrom, validTo].map(n => Math.round(n)).join('-'))
   const signature = sign(message, secretKey)
   return 'ed25519-' + [publicKey, signature].map(x => byteArrayToHex(x)).join('-')
