@@ -33,6 +33,7 @@ export const get: RequestHandler = async function get ({ request }) {
     }
   } else {
     const files = await list(dataPath)
+
     return {
       body: {
         collection: params.collection,

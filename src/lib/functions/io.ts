@@ -66,7 +66,10 @@ export async function list (path: string | FileInfo): Promise<FileInfo[]> {
     return getInfo(filePath)
   }))
 
-  return result
+  // sort with the nice natural number sorting
+  var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
+  return result.sort((x, y) => collator.compare(x.name, y.name))
 }
 
 // read a file
@@ -144,7 +147,7 @@ export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
   const pathString = typeof path === 'string' ? path : path.path
   const osPath = fileToOSPath(pathString)
   const stats = await fs.stat(osPath)
-  return {
+  const info = {
     name: pathToSegments(pathString).at(-1),
     path: pathString,
     type: pathString.split('/').at(-1).includes('.') ? extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream' : 'application/octet-stream',
@@ -155,6 +158,18 @@ export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
     created: stats.ctime,
     etag: `"${Math.round(stats.mtimeMs).toString(36)}:${stats.ino}:${stats.size}"`
   }
+
+  if (info.isFolder) {
+    // recursively check size
+    const insides = await list(path)
+    info.size = 0
+    for (const subthing of insides) {
+      info.size += subthing.size
+      if (info.lastModified < subthing.lastModified) info.lastModified = subthing.lastModified
+    }
+  }
+
+  return info
 }
 
 // check if a path is within another path
