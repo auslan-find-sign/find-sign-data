@@ -1,5 +1,5 @@
 <script lang=ts>
-  import type { FileInfoJSON } from '$lib/functions/io'
+  import type { FileInfo, FileInfoJSON } from '$lib/functions/io'
   import { friendly as friendlyDate } from '$lib/functions/date'
   import { bytes } from '$lib/functions/size'
   import Icon from '$lib/Icon.svelte'
@@ -20,14 +20,15 @@
     return encodeCollectionURLPath(collection, mode, file.path.split('/').slice(2).join('/'))
   }
 
-  function iconForType (type: string): string {
-    if (type.startsWith('image/')) return 'picture'
-    if (type.startsWith('video/')) return 'film'
-    if (type === 'text/calendar') return 'calendar'
-    if (type.startsWith('text/')) return 'file'
-    if (type.startsWith('audio/')) return 'cassette'
-    if (type.startsWith('model/')) return '3dglasses'
-    if (type === 'application/zip') return 'zip'
+  function iconForFileInfo (file: FileInfoJSON): string {
+    if (file.isFolder) return 'folder'
+    if (file.type.startsWith('image/')) return 'picture'
+    if (file.type.startsWith('video/')) return 'film'
+    if (file.type === 'text/calendar') return 'calendar'
+    if (file.type.startsWith('text/')) return 'file'
+    if (file.type.startsWith('audio/')) return 'cassette'
+    if (file.type.startsWith('model/')) return '3dglasses'
+    if (file.type === 'application/zip') return 'zip'
     return 'file'
   }
 </script>
@@ -44,7 +45,7 @@
   <tbody>
     {#each files.slice(currentPage * filesPerPage, (currentPage + 1) * filesPerPage) as file (file.path)}
       <tr>
-        <td><a href={filePath(file, 'files')}><Icon name={iconForType(file.type)}/>{decodeURIComponent(file.name)}</a></td>
+        <td><a href={filePath(file, 'files')}><Icon name={iconForFileInfo(file)}/>{decodeURIComponent(file.name)}</a></td>
         <td>{bytes(file.size)}</td>
         <td>{friendlyDate(file.lastModified)}</td>
         <td>
