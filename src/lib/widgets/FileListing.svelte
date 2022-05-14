@@ -1,5 +1,5 @@
 <script lang=ts>
-  import type { FileInfo, FileInfoJSON } from '$lib/functions/io'
+  import type { FileInfoJSON } from '$lib/functions/io'
   import { friendly as friendlyDate } from '$lib/functions/date'
   import { bytes } from '$lib/functions/size'
   import Icon from '$lib/Icon.svelte'

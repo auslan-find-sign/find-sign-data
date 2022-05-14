@@ -58,18 +58,22 @@ function pathToSegments (path: string | FileInfo) {
 
 // returns an array of FileInfo objects
 export async function list (path: string | FileInfo): Promise<FileInfo[]> {
-  const dirPath = fileToOSPath(path)
-  const dirlist = await fs.readdir(dirPath)
+  const dirlist = await listStrings(path)
 
-  const result: FileInfo[] = await Promise.all(dirlist.map(name => {
+  return await Promise.all(dirlist.map(name => {
     const filePath = `${path}/${name}`
     return getInfo(filePath)
   }))
+}
+
+// returns an array of strings for what's inside this path
+export async function listStrings (path: string | FileInfo): Promise<string[]> {
+  const dirPath = fileToOSPath(path)
+  const dirlist = await fs.readdir(dirPath)
 
   // sort with the nice natural number sorting
   var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
-
-  return result.sort((x, y) => collator.compare(x.name, y.name))
+  return dirlist.sort(collator.compare)
 }
 
 // read a file
