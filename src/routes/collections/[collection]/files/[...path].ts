@@ -33,13 +33,16 @@ export const get: RequestHandler = async function get ({ request }) {
     }
   } else {
     const files = await list(dataPath)
+    const hasReadme = files.some(x => x.name === '#README.md')
+    const readme = hasReadme ? byteArrayToString(await read(`${dataPath}/#README.md`)) : undefined
 
     return {
       body: {
         collection: params.collection,
         path: params.path,
         isFile: stats.isFile,
-        files
+        readme,
+        files: files.filter(x => !x.name.startsWith('#') && !x.name.startsWith('.'))
       }
     }
   }

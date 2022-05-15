@@ -31,6 +31,7 @@
   export let contentsURL: string | undefined = undefined
   export let type: string | undefined = undefined
   export let isFile: boolean = false
+  export let readme: string = undefined
 
   // pretty printers
   let displayContents = ''
@@ -72,6 +73,9 @@
       {/if}
 
       <p><a href={contentsURL} download={filename}>Download</a></p>
+    {/if}
+    {#if readme}
+      <Markdown markdown={readme}/>
     {/if}
   </Main>
 </Layout>
