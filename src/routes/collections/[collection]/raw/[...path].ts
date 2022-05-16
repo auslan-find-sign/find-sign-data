@@ -1,5 +1,5 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, read, getInfo, isWithin, write, remove } from '$lib/functions/io'
+import { list, read, getInfo, isWithin, write, remove, listStrings } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
@@ -75,9 +75,14 @@ export const get: RequestHandler = async function ({ request }) {
     // return a normal request
     return { headers, body: await read(dataPath) }
   } else {
-    return {
-      body: {
-        files: await list(dataPath)
+    if (request.headers.get('Accept') === 'text/plain') {
+      const body = (await listStrings(dataPath)).join('\n')
+      return { headers: { 'Content-Type': 'text/plain' }, body }
+    } else {
+      return {
+        body: {
+          files: await list(dataPath)
+        }
       }
     }
   }
