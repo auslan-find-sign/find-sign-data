@@ -36,6 +36,8 @@ export const get: RequestHandler = async function ({ request }) {
         const ranges = rangesStr.split(',')
           .map(x => x.trim().split('-', 2).map(x => x ? Number(x) : undefined))
           .map(([left, right]) => [left, right !== undefined ? right : data.length])
+        console.log('range req', request.headers.get('Range'))
+        console.log(ranges)
         if (ranges.length === 1) {
           // requesting a single range
           return {
