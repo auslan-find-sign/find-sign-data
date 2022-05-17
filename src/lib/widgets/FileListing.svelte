@@ -102,6 +102,8 @@
     border-image: var(--blue-rule-border);
     border-bottom: 4px solid;
     border-width: 4px;
+    word-break: break-all;
+    word-wrap: break-word;
   }
 
   thead td {
