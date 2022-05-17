@@ -29,9 +29,13 @@ export const get: RequestHandler = async function ({ request }) {
       }
 
       if (request.headers.has('Range')) {
+        const data = await read(dataPath)
+
         // range request
         const rangesStr = request.headers.get('Range').split('bytes=')[1]
-        const ranges = rangesStr.split(',').map(x => x.trim().split('-', 2).map(x => Number(x)))
+        const ranges = rangesStr.split(',')
+          .map(x => x.trim().split('-', 2).map(x => x ? Number(x) : undefined))
+          .map(([left, right]) => [left, right !== undefined ? right : data.length])
         if (ranges.length === 1) {
           // requesting a single range
           return {
@@ -41,12 +45,11 @@ export const get: RequestHandler = async function ({ request }) {
               'Content-Range': `bytes ${ranges[0].join('-')}/${headers['Content-Length']}`,
               'Content-Length': `${ranges[0][1] - ranges[0][0]}`
             },
-            body: (await read(dataPath)).subarray(...ranges[0])
+            body: data.subarray(...ranges[0])
           }
         } else if (ranges.length > 1) {
           // multipart response
           const boundary = nanoid()
-          const data = await read(dataPath)
           const bodies = []
           const t = stringToByteArray
 
@@ -56,7 +59,10 @@ export const get: RequestHandler = async function ({ request }) {
             bodies.push(t(`Content-Range: ${range[0]}-${range[1]}/${headers['Content-Length']}\r\n`))
             bodies.push(t(`\r\n`))
             bodies.push(data.subarray(range[0], range[1]))
+            bodies.push(t('\r\n'))
           }
+
+          bodies.push(t('----\r\n'))
 
           const byteIter = function * () {
             for (const section of bodies) yield * section
