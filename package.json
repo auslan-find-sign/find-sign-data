@@ -30,6 +30,7 @@
   "dependencies": {
     "@fontsource/fira-mono": "^4.5.0",
     "@fontsource/josefin-sans": "^4.5.6",
+    "@hapi/ammo": "^6.0.0",
     "@lukeed/uuid": "^2.0.0",
     "@sveltejs/adapter-node": "^1.0.0-next.73",
     "base64-arraybuffer": "^1.0.2",
@@ -44,8 +45,6 @@
     "pigeonmark-html": "^1.0.2",
     "pigeonmark-utils": "^1.0.5",
     "pigeonmark-xml": "^1.0.1",
-    "prismjs": "^1.27.0",
-    "prismjs-components-importer": "^0.1.0",
     "string-natural-compare": "^3.0.1",
     "tiny-function-queue": "^1.0.1",
     "tweetnacl-ts": "^1.0.3"

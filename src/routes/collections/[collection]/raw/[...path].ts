@@ -4,6 +4,7 @@ import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
 import { isValid, isAuthorized } from '../_auth'
+import ammo from '@hapi/ammo'
 
 export const get: RequestHandler = async function ({ request }) {
     try {
@@ -23,7 +24,7 @@ export const get: RequestHandler = async function ({ request }) {
       const headers = {
         'Accept-Ranges': 'bytes',
         'Content-Type': isText ? `${stats.type}; charset=utf-8` : stats.type,
-        'Content-Length': `${stats.size}`,
+        // 'Content-Length': `${stats.size}`,
         'Last-Modified': stats.lastModified.toUTCString(),
         'Etag': stats.etag,
       }
@@ -32,22 +33,24 @@ export const get: RequestHandler = async function ({ request }) {
         const data = await read(dataPath)
 
         // range request
-        const rangesStr = request.headers.get('Range').split('bytes=')[1]
-        const ranges = rangesStr.split(',')
-          .map(x => x.trim().split('-', 2).map(x => x ? Number(x) : undefined))
-          .map(([left, right]) => [left, right !== undefined ? right : data.length])
-        console.log('range req', request.headers.get('Range'))
-        console.log(ranges)
+        // const rangesStr = request.headers.get('Range').split('bytes=')[1]
+        // const ranges = rangesStr.split(',')
+        //   .map(x => x.trim().split('-', 2).map(x => x ? Number(x) : undefined))
+        //   .map(([left, right]) => [left, right !== undefined ? right : data.length - 1])
+        // console.log('range req', request.headers.get('Range'))
+        // console.log(ranges)
+        const ranges = ammo.header(request.headers.get('Range'), stats.size)
+
         if (ranges.length === 1) {
+          const [range] = ranges
           // requesting a single range
           return {
             status: 206,
             headers: {
               ...headers,
-              'Content-Range': `bytes ${ranges[0].join('-')}/${headers['Content-Length']}`,
-              'Content-Length': `${ranges[0][1] - ranges[0][0]}`
+              'Content-Range': `bytes ${range.from}-${range.to}/${stats.size}`,
             },
-            body: data.subarray(...ranges[0])
+            body: data.subarray(range.from, range.to + 1)
           }
         } else if (ranges.length > 1) {
           // multipart response
@@ -58,9 +61,9 @@ export const get: RequestHandler = async function ({ request }) {
           for (const range of ranges) {
             bodies.push(t(`--${boundary}\r\n`))
             bodies.push(t(`Content-Type: ${headers['Content-Type']}\r\n`))
-            bodies.push(t(`Content-Range: ${range[0]}-${range[1]}/${headers['Content-Length']}\r\n`))
+            bodies.push(t(`Content-Range: bytes ${range.from}-${range.to}/${stats.size}\r\n`))
             bodies.push(t(`\r\n`))
-            bodies.push(data.subarray(range[0], range[1]))
+            bodies.push(data.subarray(range.from, range.to + 1))
             bodies.push(t('\r\n'))
           }
 
