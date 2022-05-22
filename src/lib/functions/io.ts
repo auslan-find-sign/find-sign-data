@@ -137,9 +137,11 @@ export async function ensureFolder (path: string | FileInfo) {
 // does something exist at this path?
 export async function exists (path: string | FileInfo, kind?: 'file' | 'folder'): Promise<boolean> {
   try {
-    const stats = await getInfo(path)
-    if (kind && kind === 'file') return stats.isFile
-    if (kind && kind === 'folder') return stats.isFolder
+    const pathString = typeof path === 'string' ? path : path.path
+    const osPath = fileToOSPath(pathString)
+    const stats = await fs.stat(osPath)
+    if (kind && kind === 'file') return stats.isFile()
+    if (kind && kind === 'folder') return stats.isDirectory()
     return true
   } catch (err) {
     return false
