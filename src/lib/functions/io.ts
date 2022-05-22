@@ -86,9 +86,13 @@ export async function read (path: string | FileInfo): Promise<Uint8Array> {
 export async function write (path: string | FileInfo, data: Uint8Array | string) {
   const tmpfile = nodePath.join(siteConfig.tempFolder, nanoid())
   const segments = pathToSegments(path)
-  if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
   await fs.writeFile(tmpfile, data)
-  await fs.rename(tmpfile, fileToOSPath(path))
+  try {
+    await fs.rename(tmpfile, fileToOSPath(path))
+  } catch (err) {
+    if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
+    await fs.rename(tmpfile, fileToOSPath(path))
+  }
 }
 
 // write a file with a randomly generated unique filename, returns string path
