@@ -4,6 +4,7 @@ import fs from 'node:fs/promises'
 import nodePath from 'node:path'
 import mimeDB from 'mime-db/db.json'
 import { nanoid } from 'nanoid'
+import { decode as decodeBase64 } from 'base64-arraybuffer'
 
 // @ts-ignore
 mimeDB['application/cbor'].extensions = ['cbor']
@@ -37,6 +38,22 @@ export type FileInfoJSON = {
   path: string, // full path to file
   isFile: boolean, // is this item a file?
   isFolder: boolean, // is this item a folder?
+}
+
+export type BulkFiles = {
+  [filePath: string]: BulkFileContents
+}
+
+export type BulkFileContents = BulkFileBase64Contents | BulkFileStringContents
+
+type BulkFileBase64Contents = {
+  encoding: 'base64',
+  data: string
+}
+
+type BulkFileStringContents = {
+  encoding: 'string',
+  data: string
 }
 
 // convert a file object or string path to an OS absolute path
@@ -85,13 +102,46 @@ export async function read (path: string | FileInfo): Promise<Uint8Array> {
 // rewrite the contents of a file, with no downtime (rename-over)
 export async function write (path: string | FileInfo, data: Uint8Array | string) {
   const tmpfile = nodePath.join(siteConfig.tempFolder, nanoid())
-  const segments = pathToSegments(path)
   await fs.writeFile(tmpfile, data)
   try {
     await fs.rename(tmpfile, fileToOSPath(path))
   } catch (err) {
+    const segments = pathToSegments(path)
     if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
     await fs.rename(tmpfile, fileToOSPath(path))
+  }
+}
+
+/** write an entire folder structure in one atomic action */
+export async function bulkWrite (path: string | FileInfo, files: BulkFiles) {
+  const tmpFolder = nodePath.resolve(nodePath.join(siteConfig.tempFolder, nanoid()))
+  const segments = pathToSegments(path)
+  await fs.mkdir(tmpFolder, { recursive: true })
+  for (const filePath in files) {
+    const fileSegments = pathToSegments(filePath)
+    const fileOSPath = nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments))
+    if (!fileOSPath.startsWith(tmpFolder)) throw new Error('Security violation, file path unacceptable')
+    let fileData: string | Uint8Array = files[filePath].data
+    if (files[filePath].encoding === 'base64') fileData = new Uint8Array(decodeBase64(fileData))
+    try {
+      await fs.writeFile(fileOSPath, fileData)
+    } catch (err) {
+      // if write fails, try making sure the containing folder exists
+      if (fileSegments.length > 1) {
+        await fs.mkdir(nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments.slice(0, -1))), { recursive: true })
+        await fs.writeFile(fileOSPath, fileData)
+      }
+    }
+  }
+
+  // move the folder in to place
+  const destinationOSPath = nodePath.resolve(nodePath.join(siteConfig.data, ...segments))
+  try {
+    await fs.rename(tmpFolder, destinationOSPath)
+  } catch (err) {
+    // try ensuring containing folder exists and try renaming again
+    if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
+    await fs.rename(tmpFolder, destinationOSPath)
   }
 }
 

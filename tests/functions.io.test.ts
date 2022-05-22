@@ -45,6 +45,31 @@ describe.concurrent('storage io', () => {
     expect(await io.exists(name, 'folder')).to.be.false
   })
 
+  it('bulkWrite', async () => {
+    const name = `#test-bulk-write-${nanoid()}`
+    expect(await io.exists(name)).to.be.false
+    await io.bulkWrite(name, {
+      'rootFile.txt': { encoding: 'string', data: 'rootFileContents' },
+      'in/sub/folder.foo': { encoding: 'string', data: 'deeper subfile' },
+      'in/binary.bin': { encoding: 'base64', data: 'YmluYXJ5IGRhdGE=' }
+    })
+
+    // the containing folder should be made
+    expect(await io.exists(name)).to.be.true
+    expect(await io.exists(name, 'file')).to.be.false
+    expect(await io.exists(name, 'folder')).to.be.true
+
+    // the subfiles should read correctly
+    expect(byteArrayToString(await io.read(`${name}/rootFile.txt`))).to.equal('rootFileContents')
+    expect(byteArrayToString(await io.read(`${name}/in/sub/folder.foo`))).to.equal('deeper subfile')
+    expect(byteArrayToString(await io.read(`${name}/in/binary.bin`))).to.equal('binary data')
+
+    await io.remove(name)
+    expect(await io.exists(name)).to.be.false
+    expect(await io.exists(name, 'file')).to.be.false
+    expect(await io.exists(name, 'folder')).to.be.false
+  })
+
   it('writeUnique', async () => {
     const folder = `#test-io-writeUnique-${nanoid()}`
     const path = await io.writeUnique(folder, 'howdy there', 'text/plain')

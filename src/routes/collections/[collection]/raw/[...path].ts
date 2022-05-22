@@ -1,5 +1,5 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, read, getInfo, isWithin, write, remove, listStrings } from '$lib/functions/io'
+import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
@@ -118,6 +118,35 @@ export const put: RequestHandler = async function ({ request }) {
   if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
 
   await write(dataPath, new Uint8Array(await request.arrayBuffer()))
+  const stats = await getInfo(dataPath)
+
+  return {
+    status: 204, // No Content
+    headers: {
+      'ETag': stats.etag,
+      'Last-Modified': stats.lastModified.toUTCString()
+    }
+  }
+}
+
+export const post: RequestHandler = async function ({ request }) {
+  const params = decodeCollectionURLPath((new URL(request.url)).pathname)
+  const { collection, path } = params
+  const dataPath = `collections/${collection}/${path}`
+
+  if (!isValid(params)) return { status: 500 }
+  if (!isWithin(dataPath, `collections/${collection}`)) return { status: 500 }
+  if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
+
+  const postBody = await request.json()
+
+  if (typeof postBody !== 'object' || !postBody) {
+    return { status: 500, body: 'invalid post body, must be json object' }
+  } else if (postBody.type === 'bulk') {
+    await bulkWrite(dataPath, postBody.files)
+  } else {
+    return { status: 500, body: 'json body must specify type' }
+  }
   const stats = await getInfo(dataPath)
 
   return {
