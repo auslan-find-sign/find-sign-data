@@ -145,7 +145,7 @@ export async function bulkWrite (path: string | FileInfo, files: BulkFiles) {
     // because node fs api doesn't allow swapping directory pointers, and most filesystems don't seem
     // to support it anyway, and it only is possible on relatively modern linux kernels, this crappy
     // workaround is needed, using locks to stall reads while non-atomic swap is done.
-    const trashPath = destinationOSPath.replace(/\/[^\/]+/, `/#trash-${nanoid()}-`)
+    const trashPath = destinationOSPath.replace(/\/([^\/]+)$/, `/#trash-${nanoid()}-$1`)
     await tfq.lockWhile('io', async () => {
       // this is why tfq is used, for fake atomic situations like this
       await fs.rename(destinationOSPath, trashPath)
