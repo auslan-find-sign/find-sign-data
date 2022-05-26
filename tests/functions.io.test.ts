@@ -10,16 +10,23 @@ describe.concurrent('storage io', () => {
 
   it('list', async () => {
     const folder = `#test-list-${nanoid()}`
+    console.log('writing 1')
     await io.writeUnique(folder, 'hello world', 'text/plain')
+    console.log('writing 2')
     await io.writeUnique(folder, 'hello world', 'text/plain')
+    console.log('writing 3')
     await io.writeUnique(folder, 'hello world', 'text/plain')
+    console.log('listing')
     const listing = await io.list(folder)
+    console.log('done listing')
     expect(listing).to.have.length(3)
     expect(listing[0].isFile).to.be.true
     expect(listing[0].etag).to.be.a.string
     expect(listing[0].size).to.equal('hello world'.length)
     expect(listing[0].created).to.be.a('Date')
+    console.log('removing containing folder')
     await io.remove(folder)
+    console.log('done removing folder')
   })
 
   it('read', async () => {
@@ -93,7 +100,7 @@ describe.concurrent('storage io', () => {
 
   it('remove', async () => {
     const folder = `#test-io-remove-${nanoid()}`
-    const file = `$test-io-remove-${nanoid()}`
+    const file = `#test-io-remove-${nanoid()}`
     // test removing a file from root
     expect(await io.exists(file)).to.be.false
     await io.write(file, 'yo')

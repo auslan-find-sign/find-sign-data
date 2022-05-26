@@ -56,7 +56,7 @@ type BulkFileStringContents = {
   data: string
 }
 
-// convert a file object or string path to an OS absolute path
+/** convert a file object or string path to an OS absolute path */
 function fileToOSPath (file: FileInfo | string): string {
   if (typeof file === 'object' && typeof file.path === 'string') {
     return fileToOSPath(file.path)
@@ -67,13 +67,13 @@ function fileToOSPath (file: FileInfo | string): string {
   }
 }
 
-// convert a string path to an array of segments
+/** convert a string path to an array of segments */
 function pathToSegments (path: string | FileInfo) {
   const p = typeof path === 'string' ? path : path.path
   return p.split('/')
 }
 
-// returns an array of FileInfo objects
+/** returns an array of FileInfo objects */
 export async function list (path: string | FileInfo): Promise<FileInfo[]> {
   const dirlist = await listStrings(path)
 
@@ -83,32 +83,37 @@ export async function list (path: string | FileInfo): Promise<FileInfo[]> {
   }))
 }
 
-// returns an array of strings for what's inside this path
+/** returns an array of strings for what's inside this path */
 export async function listStrings (path: string | FileInfo): Promise<string[]> {
   const dirPath = fileToOSPath(path)
-  const dirlist = await fs.readdir(dirPath)
+  const dirlist = await tfq.lockWhile('io', () => fs.readdir(dirPath))
 
   // sort with the nice natural number sorting
   var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
   return dirlist.sort(collator.compare)
 }
 
-// read a file
+/** read a file */
 export async function read (path: string | FileInfo): Promise<Uint8Array> {
-  const nodeBuffer = await fs.readFile(fileToOSPath(path))
+  const nodeBuffer = await tfq.lockWhile('io', () => fs.readFile(fileToOSPath(path)))
   return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength)
 }
 
-// rewrite the contents of a file, with no downtime (rename-over)
+/** rewrite the contents of a file, with no downtime (rename-over) */
 export async function write (path: string | FileInfo, data: Uint8Array | string) {
   const tmpfile = nodePath.join(siteConfig.tempFolder, nanoid())
   await fs.writeFile(tmpfile, data)
   try {
-    await fs.rename(tmpfile, fileToOSPath(path))
+    await tfq.lockWhile('io', () => fs.rename(tmpfile, fileToOSPath(path)))
   } catch (err) {
     const segments = pathToSegments(path)
-    if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
-    await fs.rename(tmpfile, fileToOSPath(path))
+    try {
+      if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
+      await tfq.lockWhile('io', () => fs.rename(tmpfile, fileToOSPath(path)))
+    } catch (err2) {
+      fs.rm(tmpfile) // tidy up temps
+      throw err2
+    }
   }
 }
 
@@ -136,64 +141,63 @@ export async function bulkWrite (path: string | FileInfo, files: BulkFiles) {
 
   // move the folder in to place
   const destinationOSPath = nodePath.resolve(nodePath.join(siteConfig.data, ...segments))
-  try {
-    await fs.rename(tmpFolder, destinationOSPath)
-  } catch (err) {
-    // try ensuring containing folder exists and try renaming again
-    if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
-    await fs.rename(tmpFolder, destinationOSPath)
+  if (await exists(path)) {
+    // because node fs api doesn't allow swapping directory pointers, and most filesystems don't seem
+    // to support it anyway, and it only is possible on relatively modern linux kernels, this crappy
+    // workaround is needed, using locks to stall reads while non-atomic swap is done.
+    const trashPath = destinationOSPath.replace(/\/[^\/]+/, `/#trash-${nanoid()}-`)
+    await tfq.lockWhile('io', async () => {
+      // this is why tfq is used, for fake atomic situations like this
+      await fs.rename(destinationOSPath, trashPath)
+      await fs.rename(tmpFolder, destinationOSPath)
+    })
+    fs.rm(trashPath, { recursive: true, force: true })
+  } else {
+    await tfq.lockWhile('io', () => fs.rename(tmpFolder, destinationOSPath))
   }
 }
 
-// write a file with a randomly generated unique filename, returns string path
+/** write a file with a randomly generated unique filename, returns string path */
 export async function writeUnique (folder: string | FileInfo, data: string | Uint8Array, mimeType: string): Promise<string> {
   const ext: string = { extensions: ['bin'], ...(mimeDB[mimeType] || {}) }.extensions[0]
   const name = `${nanoid()}.${ext}`
   const path = `${folder}/${name}`
-  // if this name is in use, try again
-  if (await exists(path)) return writeUnique(folder, data, mimeType)
   await write(path, data)
   return path
 }
 
-// append a string or byte array to a file, with no half saved version (copy and rename over)
+/** append a string or byte array to a file, using read locks to prevent partial writes being read */
 export async function append (path: string | FileInfo, data: Uint8Array | string) {
-  const tmpfile = nodePath.join(siteConfig.tempFolder, nanoid())
   const destination = fileToOSPath(path)
-
-  await ensureFolder(pathToSegments(path).slice(0, -1).join('/'))
-  await tfq.lockWhile(destination, async () => {
-    await fs.copyFile(destination, tmpfile)
-    await fs.appendFile(tmpfile, data)
-    await fs.rename(tmpfile, destination)
-  })
-}
-
-// delete a file or folder
-export async function remove (path: string | FileInfo) {
-  const destination = fileToOSPath(path)
-  await fs.rm(destination, { recursive: true, force: true, maxRetries: 100 })
-}
-
-export async function ensureFolder (path: string | FileInfo) {
-  const segments = pathToSegments(typeof path === 'string' ? path : path.path)
-  const progress = []
-
-  while (segments.length) {
-    progress.push(segments.shift())
-    const destination = progress.join('/')
-    if (!await exists(destination, 'folder')) {
-      await fs.mkdir(fileToOSPath(destination))
+  try {
+    await tfq.lockWhile('io', () => fs.appendFile(destination, data))
+  } catch (err) {
+    try {
+      await ensureFolder(pathToSegments(path).slice(0, -1).join('/'))
+      await tfq.lockWhile('io', () => fs.appendFile(destination, data))
+    } catch (_) {
+      throw err
     }
   }
 }
 
-// does something exist at this path?
+/** delete a file or folder */
+export async function remove (path: string | FileInfo) {
+  const destination = fileToOSPath(path)
+  await tfq.lockWhile('io', () => fs.rm(destination, { recursive: true, force: true, maxRetries: 100 }))
+}
+
+/** ensure a folder exists at the path, and all the parent folders above it */
+export async function ensureFolder (path: string | FileInfo) {
+  await fs.mkdir(fileToOSPath(path), { recursive: true })
+}
+
+/** does something exist at this path? */
 export async function exists (path: string | FileInfo, kind?: 'file' | 'folder'): Promise<boolean> {
   try {
     const pathString = typeof path === 'string' ? path : path.path
     const osPath = fileToOSPath(pathString)
-    const stats = await fs.stat(osPath)
+    const stats = await tfq.lockWhile('io', () => fs.stat(osPath))
     if (kind && kind === 'file') return stats.isFile()
     if (kind && kind === 'folder') return stats.isDirectory()
     return true
@@ -202,17 +206,17 @@ export async function exists (path: string | FileInfo, kind?: 'file' | 'folder')
   }
 }
 
-// get FileInfo object for a path, or throw an error if it doesn't exist
+/** get FileInfo object for a path, or throw an error if it doesn't exist */
 export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
   const pathString = typeof path === 'string' ? path : path.path
   const osPath = fileToOSPath(pathString)
-  const stats = await fs.stat(osPath)
+  const stats = await tfq.lockWhile('io', () => fs.stat(osPath))
   const info = {
     name: pathToSegments(pathString).at(-1),
     path: pathString,
     type: pathString.split('/').at(-1).includes('.') ? extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream' : 'application/octet-stream',
     size: stats.size,
-    isFile: stats.isFile(),
+    isFile: stats.isFile() || stats.isSymbolicLink(),
     isFolder: stats.isDirectory(),
     lastModified: stats.mtime,
     created: stats.ctime,
@@ -220,25 +224,37 @@ export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
   }
 
   if (info.isFolder) {
-    // recursively check size
-    const insides = await list(path)
+    // recursively add file sizes and find latest mtime
     info.size = 0
-    for (const subthing of insides) {
-      info.size += subthing.size
-      if (info.lastModified < subthing.lastModified) info.lastModified = subthing.lastModified
+    const walk = async (path) => {
+      const listing = await tfq.lockWhile('io', () => fs.readdir(path, { withFileTypes: true }))
+      for (const entry of listing) {
+        if (entry.isDirectory()) {
+          await walk(nodePath.join(path, entry.name))
+        } else if (entry.isFile() || entry.isSymbolicLink()) {
+          const stats = await tfq.lockWhile('io', () => fs.stat(nodePath.join(path, entry.name)))
+          info.size += stats.size
+          if (info.lastModified < stats.mtime){
+            info.lastModified = stats.mtime
+          }
+        }
+      }
     }
+
+    await walk(fileToOSPath(info.path))
   }
 
   return info
 }
 
-// check if a path is within another path
+/** check if a path is within another path */
 export function isWithin (target: string, container: string): boolean {
   const targetOS = fileToOSPath(target)
   const containerOS = fileToOSPath(container)
   return targetOS.startsWith(containerOS + nodePath.sep)
 }
 
+/** make sure data and temp folders exist */
 export async function initializeStorage () {
   try {
     await fs.mkdir(siteConfig.data, { recursive: true })
