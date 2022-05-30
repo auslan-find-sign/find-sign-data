@@ -7,7 +7,11 @@ import { isValid, isAuthorized } from '../_auth'
 import ammo from '@hapi/ammo'
 
 export const get: RequestHandler = async function ({ request }) {
-    try {
+  console.log(request.url)
+  request.headers.forEach((value, key) => {
+    console.log(`${key}: ${value}`)
+  })
+  try {
     const params = decodeCollectionURLPath((new URL(request.url)).pathname)
     const { collection, path } = params
     const dataPath = `collections/${collection}/${path}`
@@ -24,33 +28,26 @@ export const get: RequestHandler = async function ({ request }) {
       const headers = {
         'Accept-Ranges': 'bytes',
         'Content-Type': isText ? `${stats.type}; charset=utf-8` : stats.type,
-        // 'Content-Length': `${stats.size}`,
         'Last-Modified': stats.lastModified.toUTCString(),
         'Etag': stats.etag,
       }
 
       if (request.headers.has('Range')) {
         const data = await read(dataPath)
-
-        // range request
-        // const rangesStr = request.headers.get('Range').split('bytes=')[1]
-        // const ranges = rangesStr.split(',')
-        //   .map(x => x.trim().split('-', 2).map(x => x ? Number(x) : undefined))
-        //   .map(([left, right]) => [left, right !== undefined ? right : data.length - 1])
-        // console.log('range req', request.headers.get('Range'))
-        // console.log(ranges)
         const ranges = ammo.header(request.headers.get('Range'), stats.size)
 
         if (ranges.length === 1) {
           const [range] = ranges
           // requesting a single range
+          const body = data.subarray(range.from, range.to + 1)
           return {
             status: 206,
             headers: {
               ...headers,
               'Content-Range': `bytes ${range.from}-${range.to}/${stats.size}`,
+              'Content-Length': `${body.length}`
             },
-            body: data.subarray(range.from, range.to + 1)
+            body
           }
         } else if (ranges.length > 1) {
           // multipart response
@@ -78,14 +75,21 @@ export const get: RequestHandler = async function ({ request }) {
             headers: {
               ...headers,
               'Content-Type': `multipart/byteranges; boundary=${boundary}`,
-              'Content-Length': `${body.byteLength}`
+              'Content-Length': `${body.length}`
             },
             body: body
           }
         }
       }
       // return a normal request
-      return { headers, body: await read(dataPath) }
+      const body = await read(dataPath)
+      return {
+        headers: {
+          ...headers,
+          'Content-Length': `${body.length}`
+        },
+        body
+      }
     } else {
       if (request.headers.get('Accept') === 'text/plain') {
         const body = (await listStrings(dataPath)).join('\n')
