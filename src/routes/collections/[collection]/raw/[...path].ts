@@ -7,10 +7,10 @@ import { isValid, isAuthorized } from '../_auth'
 import ammo from '@hapi/ammo'
 
 export const get: RequestHandler = async function ({ request }) {
-  console.log(request.url)
-  request.headers.forEach((value, key) => {
-    console.log(`${key}: ${value}`)
-  })
+  // console.log(request.url)
+  // request.headers.forEach((value, key) => {
+  //   console.log(`${key}: ${value}`)
+  // })
   try {
     const params = decodeCollectionURLPath((new URL(request.url)).pathname)
     const { collection, path } = params
