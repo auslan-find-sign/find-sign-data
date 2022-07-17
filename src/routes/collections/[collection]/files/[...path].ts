@@ -4,7 +4,7 @@ import { isValid, isAuthorized } from '../_auth'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
 import type { RequestHandler } from '@sveltejs/kit'
 
-export const get: RequestHandler = async function get ({ request }) {
+export const GET: RequestHandler = async function get ({ request }) {
   const params = decodeCollectionURLPath((new URL(request.url)).pathname)
   const { collection, path } = params
   const dataPath = `collections/${collection}/${path}`

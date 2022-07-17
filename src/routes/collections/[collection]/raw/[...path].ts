@@ -6,11 +6,11 @@ import { decodeCollectionURLPath } from '$lib/functions/collection-url'
 import { isValid, isAuthorized } from '../_auth'
 import ammo from '@hapi/ammo'
 
-export const get: RequestHandler = async function ({ request }) {
   // console.log(request.url)
   // request.headers.forEach((value, key) => {
   //   console.log(`${key}: ${value}`)
   // })
+export const GET: RequestHandler = async function ({ request }) {
   try {
     const params = decodeCollectionURLPath((new URL(request.url)).pathname)
     const { collection, path } = params
@@ -112,7 +112,7 @@ export const get: RequestHandler = async function ({ request }) {
 }
 
 // create file or replace it's contents
-export const put: RequestHandler = async function ({ request }) {
+export const PUT: RequestHandler = async function ({ request }) {
   const params = decodeCollectionURLPath((new URL(request.url)).pathname)
   const { collection, path } = params
   const dataPath = `collections/${collection}/${path}`
@@ -133,7 +133,7 @@ export const put: RequestHandler = async function ({ request }) {
   }
 }
 
-export const post: RequestHandler = async function ({ request }) {
+export const POST: RequestHandler = async function ({ request }) {
   const params = decodeCollectionURLPath((new URL(request.url)).pathname)
   const { collection, path } = params
   const dataPath = `collections/${collection}/${path}`
@@ -163,7 +163,7 @@ export const post: RequestHandler = async function ({ request }) {
 }
 
 // create file or replace it's contents
-export const del: RequestHandler = async function ({ request }) {
+export const DELETE: RequestHandler = async function ({ request }) {
   const params = decodeCollectionURLPath((new URL(request.url)).pathname)
   const { collection, path } = params
   const dataPath = `collections/${collection}/${path}`

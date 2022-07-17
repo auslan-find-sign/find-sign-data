@@ -3,5 +3,9 @@
 	"exclude": [
 		"data",
 		"data.tmp"
-	]
+	],
+	"compilerOptions": {
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true
+	}
 }

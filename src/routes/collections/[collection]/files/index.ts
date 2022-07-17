@@ -1,4 +1,4 @@
-export function get ({ params }) {
+export function GET ({ params }) {
   return {
     status: 301,
     headers: {

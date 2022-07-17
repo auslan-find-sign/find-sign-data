@@ -1,7 +1,7 @@
 import { byteArrayToString } from '$lib/functions/binary-string'
 import { exists, list, read } from '$lib/functions/io'
 
-export async function get ({ params }) {
+export async function GET ({ params }) {
   const collection = params.collection
   const readmePath = `collections/${collection}/#README.md`
   const hasReadme = await exists(readmePath)

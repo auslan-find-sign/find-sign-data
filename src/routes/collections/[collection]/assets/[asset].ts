@@ -1,7 +1,7 @@
 import { read, getInfo, isWithin } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 
-export const get: RequestHandler = async function ({ params }) {
+export const GET: RequestHandler = async function ({ params }) {
   const dataPath = `collections/${params.collection}/#assets/${params.asset}`
 
   if (!isWithin(dataPath, `collections/${params.collection}/#assets`)) return { status: 500 }
