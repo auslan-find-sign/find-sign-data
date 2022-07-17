@@ -99,22 +99,29 @@ export async function read (path: string | FileInfo): Promise<Uint8Array> {
   return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength)
 }
 
-export async function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}) {
+export async function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}): Promise<ReadableStream<Uint8Array>> {
   const handle: fs.FileHandle = await tfq.lockWhile('io', () =>
     fs.open(fileToOSPath(path), 'r')
   )
 
   let position = 0
-  if (typeof start === 'number') position === start
+  if (typeof start === 'number') position = start
 
 
   return new ReadableStream({
     async pull (controller) {
-      const { bytesRead, buffer } = await handle.read({ position })
+      let bytesRead, buffer
+      try {
+        ({ bytesRead, buffer } = await handle.read({ position }))
+      } catch (err) {
+        controller.error(err)
+        await handle.close()
+      }
       if (bytesRead > 0) {
         if (typeof length === 'number') {
           if (bytesRead > length) {
             controller.enqueue(buffer.slice(0, length))
+            handle.close()
             controller.close()
             return
           }

@@ -2,6 +2,8 @@ import { expect, describe, it, beforeAll } from 'vitest'
 import { nanoid } from 'nanoid'
 import * as io from '../src/lib/functions/io'
 import { byteArrayToString } from '../src/lib/functions/binary-string'
+import nodeCrypto from 'node:crypto'
+import streamAsyncIterator from '../src/lib/functions/stream-to-async-iterator'
 
 describe.concurrent('storage io', () => {
   beforeAll(async () => {
@@ -33,6 +35,42 @@ describe.concurrent('storage io', () => {
     const name = `#test-${nanoid()}`
     await io.write(name, 'hello')
     expect(byteArrayToString(await io.read(name))).to.equal('hello')
+    await io.remove(name)
+    expect(await io.exists(name)).to.be.false
+  })
+
+  it('readStream', async () => {
+    const name = `#test-${nanoid()}`
+    const testData = nodeCrypto.randomBytes(1024 * 200)
+    await io.write(name, testData)
+    const chunks: Uint8Array[] = []
+    for await (const chunk of streamAsyncIterator(await io.readStream(name), true)) {
+      chunks.push(chunk)
+    }
+
+    expect(Buffer.concat(chunks).equals(testData)).to.be.true
+
+    const chunks2: Uint8Array[] = []
+    for await (const chunk of streamAsyncIterator(await io.readStream(name, { start: 100 }), true)) {
+      chunks2.push(chunk)
+    }
+
+    expect(Buffer.concat(chunks2)).to.deep.equal(testData.slice(100))
+
+    const chunks3: Uint8Array[] = []
+    for await (const chunk of streamAsyncIterator(await io.readStream(name, { length: 500 }), true)) {
+      chunks3.push(chunk)
+    }
+
+    expect(Buffer.concat(chunks3)).to.deep.equal(testData.slice(0, 500))
+
+    const chunks4: Uint8Array[] = []
+    for await (const chunk of streamAsyncIterator(await io.readStream(name, { start: 500, length: 29500 }), true)) {
+      chunks4.push(chunk)
+    }
+
+    expect(Buffer.concat(chunks4)).to.deep.equal(testData.slice(500, 30000))
+
     await io.remove(name)
     expect(await io.exists(name)).to.be.false
   })
