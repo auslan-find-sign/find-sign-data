@@ -1,15 +1,13 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite } from '$lib/functions/io'
+import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
 import { isValid, isAuthorized } from '../_auth'
 import ammo from '@hapi/ammo'
+import streamAsyncIterator from '$lib/functions/stream-to-async-iterator'
+import iteratorToStream from '$lib/functions/async-iterator-to-stream'
 
-  // console.log(request.url)
-  // request.headers.forEach((value, key) => {
-  //   console.log(`${key}: ${value}`)
-  // })
 export const GET: RequestHandler = async function ({ request }) {
   try {
     const params = decodeCollectionURLPath((new URL(request.url)).pathname)
@@ -33,60 +31,67 @@ export const GET: RequestHandler = async function ({ request }) {
       }
 
       if (request.headers.has('Range')) {
-        const data = await read(dataPath)
+        // const data = await read(dataPath)
         const ranges = ammo.header(request.headers.get('Range'), stats.size)
 
         if (ranges.length === 1) {
           const [range] = ranges
           // requesting a single range
-          const body = data.subarray(range.from, range.to + 1)
+          const start = range.from
+          const length = (range.to + 1) - range.from
+          const body = await readStream(dataPath, { start, length })
           return {
             status: 206,
             headers: {
               ...headers,
-              'Content-Range': `bytes ${range.from}-${range.to}/${stats.size}`,
-              'Content-Length': `${body.length}`
+              'Content-Range': `bytes ${start}-${range.to}/${stats.size}`,
+              'Content-Length': `${length}`
             },
             body
           }
         } else if (ranges.length > 1) {
           // multipart response
           const boundary = nanoid()
-          const bodies = []
-          const t = stringToByteArray
 
-          for (const range of ranges) {
-            bodies.push(t(`--${boundary}\r\n`))
-            bodies.push(t(`Content-Type: ${headers['Content-Type']}\r\n`))
-            bodies.push(t(`Content-Range: bytes ${range.from}-${range.to}/${stats.size}\r\n`))
-            bodies.push(t(`\r\n`))
-            bodies.push(data.subarray(range.from, range.to + 1))
-            bodies.push(t('\r\n'))
-          }
+          const asyncIter = (async function * streamMultipart() {
+            const bodies = []
+            const t = stringToByteArray
 
-          bodies.push(t('----\r\n'))
+            for (const range of ranges) {
+              yield t(`--${boundary}\r\n`)
+              yield t(`Content-Type: ${headers['Content-Type']}\r\n`)
+              yield t(`Content-Range: bytes ${range.from}-${range.to}/${stats.size}\r\n`)
+              yield t(`\r\n`)
 
-          const byteIter = function * () {
-            for (const section of bodies) yield * section
-          }
-          const body = new Uint8Array(byteIter())
+              const start = range.from
+              const length = (range.to + 1) - range.from
+              const partStream = await readStream(dataPath, { start, length })
+              for await (const chunk of streamAsyncIterator(partStream)) {
+                yield chunk
+              }
+
+              yield t('\r\n')
+            }
+
+            yield t('----\r\n')
+          })()
+
           return {
             status: 206,
             headers: {
               ...headers,
-              'Content-Type': `multipart/byteranges; boundary=${boundary}`,
-              'Content-Length': `${body.length}`
+              'Content-Type': `multipart/byteranges; boundary=${boundary}`
             },
-            body: body
+            body: iteratorToStream(asyncIter)
           }
         }
       }
       // return a normal request
-      const body = await read(dataPath)
+      const body = await readStream(dataPath)
       return {
         headers: {
           ...headers,
-          'Content-Length': `${body.length}`
+          'Content-Length': `${stats.size}`
         },
         body
       }

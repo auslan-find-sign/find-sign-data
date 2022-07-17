@@ -99,6 +99,40 @@ export async function read (path: string | FileInfo): Promise<Uint8Array> {
   return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength)
 }
 
+export async function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}) {
+  const handle: fs.FileHandle = await tfq.lockWhile('io', () =>
+    fs.open(fileToOSPath(path), 'r')
+  )
+
+  let position = 0
+  if (typeof start === 'number') position === start
+
+
+  return new ReadableStream({
+    async pull (controller) {
+      const { bytesRead, buffer } = await handle.read({ position })
+      if (bytesRead > 0) {
+        if (typeof length === 'number') {
+          if (bytesRead > length) {
+            controller.enqueue(buffer.slice(0, length))
+            controller.close()
+            return
+          }
+          length -= bytesRead
+        }
+        position += bytesRead
+        controller.enqueue(buffer.slice(0, bytesRead))
+      } else {
+        handle.close()
+        controller.close()
+      }
+    },
+    async cancel () {
+      await handle.close()
+    }
+  })
+}
+
 /** rewrite the contents of a file, with no downtime (rename-over) */
 export async function write (path: string | FileInfo, data: Uint8Array | string) {
   const tmpfile = nodePath.join(siteConfig.tempFolder, nanoid())
