@@ -90,6 +90,26 @@ describe.concurrent('storage io', () => {
     expect(await io.exists(name, 'folder')).to.be.false
   })
 
+  it('write ReadableStream', async () => {
+    const chunks: Uint8Array[] = []
+
+    const stream = new ReadableStream({
+      pull (controller) {
+        const bytes = nodeCrypto.randomBytes(1024*16)
+        chunks.push(bytes)
+        controller.enqueue(bytes)
+        if (chunks.length >= 10) controller.close()
+      }
+    })
+
+    const name = `#test-${nanoid()}`
+    await io.write(name, stream)
+
+    expect(await io.read(name)).to.deep.equal(Buffer.concat(chunks))
+
+    await io.remove(name)
+  })
+
   it('bulkWrite', async () => {
     const name = `#test-bulk-write-${nanoid()}`
     expect(await io.exists(name)).to.be.false

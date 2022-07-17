@@ -5,6 +5,7 @@ import nodePath from 'node:path'
 import mimeDB from 'mime-db/db.json'
 import { nanoid } from 'nanoid'
 import { decode as decodeBase64 } from 'base64-arraybuffer'
+import streamAsyncIterator from './stream-to-async-iterator'
 
 // @ts-ignore
 mimeDB['application/cbor'].extensions = ['cbor']
@@ -141,9 +142,19 @@ export async function readStream (path: string | FileInfo, { start = undefined, 
 }
 
 /** rewrite the contents of a file, with no downtime (rename-over) */
-export async function write (path: string | FileInfo, data: Uint8Array | string) {
+export async function write (path: string | FileInfo, data: Uint8Array | ReadableStream | string) {
   const tmpfile = nodePath.join(siteConfig.tempFolder, nanoid())
-  await fs.writeFile(tmpfile, data)
+  if (typeof data === 'string' || data instanceof Uint8Array) {
+    await fs.writeFile(tmpfile, data)
+  } else if (data instanceof ReadableStream) {
+    const handle = await fs.open(tmpfile, 'w')
+    for await (const chunk of streamAsyncIterator(data)) {
+      await handle.write(chunk)
+    }
+    await handle.close()
+  } else {
+    throw new Error('data type is not supported')
+  }
   try {
     await tfq.lockWhile('io', () => fs.rename(tmpfile, fileToOSPath(path)))
   } catch (err) {
