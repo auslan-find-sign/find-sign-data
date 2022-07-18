@@ -45,7 +45,7 @@ export const GET: RequestHandler = async function ({ request }) {
         // const data = await read(dataPath)
         const ranges = ammo.header(request.headers.get('Range'), stats.size)
 
-        if (ranges.length === 1) {
+        if (ranges !== null && ranges.length === 1) {
           const [range] = ranges
           // requesting a single range
           const start = range.from
@@ -60,7 +60,7 @@ export const GET: RequestHandler = async function ({ request }) {
             },
             body
           }
-        } else if (ranges.length > 1) {
+        } else if (ranges !== null && ranges.length > 1) {
           // multipart response
           const boundary = nanoid()
 
