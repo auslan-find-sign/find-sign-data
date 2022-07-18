@@ -1,5 +1,5 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream, bulkWriteIterable } from '$lib/functions/io'
+import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream, bulkWriteIterable, exists } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
@@ -9,8 +9,17 @@ import streamAsyncIterator from '$lib/functions/stream-to-async-iterator'
 import iteratorToStream from '$lib/functions/async-iterator-to-stream'
 import { streamMultipart } from '@ssttevee/multipart-parser'
 import MIMEParser from '@saekitominaga/mime-parser'
+import createBrotliCompressionStream from '$lib/functions/brotli-compression-stream'
+import zlib from 'node:zlib'
+
+const BrotliOptions = {
+  chunkSize: 32 * 1024,
+  params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 }
+}
 
 export const GET: RequestHandler = async function ({ request }) {
+  const acceptEncodings = (request.headers.get('Accept-Encoding') || '').split(',').map(x => x.trim())
+
   try {
     const params = decodeCollectionURLPath((new URL(request.url)).pathname)
     const { collection, path } = params
@@ -88,14 +97,56 @@ export const GET: RequestHandler = async function ({ request }) {
           }
         }
       }
+
+      console.log(acceptEncodings)
+
+      if (acceptEncodings.includes('br')) {
+        const pathParts = dataPath.split('/')
+        const brPath = [...pathParts.slice(0, -1), `#brotli-${pathParts.at(-1)}`].join('/')
+        try {
+          const brStats = await getInfo(brPath)
+          if (brStats.lastModified < stats.lastModified) {
+            throw new Error('Compressed version outdated')
+          }
+          console.log('Sending already compressed version')
+          return {
+            headers: {
+              ...headers,
+              'Content-Length': `${stats.size}`,
+              'Content-Encoding': 'br'
+            },
+            body: await readStream(brPath)
+          }
+        } catch (err) {
+          // brotli encode doesn't exist, make one?
+          if (stats.type.startsWith('text/') || stats.type.startsWith('application/')) {
+            console.log(`Compressing ${dataPath}...`)
+            // return a compressed stream and store the result
+            const body = await readStream(dataPath)
+            const compressedStream = body.pipeThrough(createBrotliCompressionStream(BrotliOptions))
+            const [compressed1, compressed2] = compressedStream.tee()
+            // write it to filesystem but don't wait
+            write(brPath, compressed1)
+
+            return {
+              headers: {
+                ...headers,
+                'Content-Length': `${stats.size}`,
+                'Content-Encoding': 'br'
+              },
+              body: compressed2
+            }
+          }
+        }
+      }
+      console.log('Sending uncompressed response')
       // return a normal request
-      const body = await readStream(dataPath)
       return {
         headers: {
           ...headers,
           'Content-Length': `${stats.size}`
         },
-        body
+        body: await readStream(dataPath)
       }
     } else {
       if (request.headers.get('Accept') === 'text/plain') {
