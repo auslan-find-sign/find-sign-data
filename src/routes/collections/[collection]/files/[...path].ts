@@ -1,7 +1,7 @@
 import { byteArrayToString } from '$lib/functions/binary-string'
 import { list, read, getInfo, isWithin } from '$lib/functions/io'
 import { isValid, isAuthorized } from '../_auth'
-import { decodeCollectionURLPath } from '$lib/functions/collection-url'
+import { decodeCollectionURLPath, encodeCollectionURLPath } from '$lib/functions/collection-url'
 import type { RequestHandler } from '@sveltejs/kit'
 
 export const GET: RequestHandler = async function get ({ request }) {
@@ -28,7 +28,7 @@ export const GET: RequestHandler = async function get ({ request }) {
         isFile: stats.isFile,
         type: stats.type,
         contents: plaintext ? byteArrayToString(contents) : undefined,
-        contentsURL: `/collections/${params.collection}/raw/${params.path}`
+        contentsURL: encodeCollectionURLPath(params.collection, 'raw', params.path)
       }
     }
   } else {
