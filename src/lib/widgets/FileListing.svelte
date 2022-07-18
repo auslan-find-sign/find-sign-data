@@ -50,6 +50,9 @@
         <td>{friendlyDate(file.lastModified)}</td>
         <td>
           {#if isWritable}
+            {#if file.isFile}
+              <a href={`/collections/${encodeURIComponent(collection)}/create-file?${new URLSearchParams([['path', file.path.split('/').slice(2).join('/')], ['edit', '1']])}`}><Icon name=edit /></a>
+            {/if}
             <a href={filePath(file, 'raw')} use:method={'delete'}><Icon name=trashcan label=Delete /></a>
           {/if}
           {#if file.isFile}

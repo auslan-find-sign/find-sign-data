@@ -72,7 +72,12 @@
         </p>
       {/if}
 
-      <p><a href={contentsURL} download={filename}>Download</a></p>
+      <p>
+        <a href={contentsURL} download={filename}>Download</a>
+        {#if contents}
+          <a href={`/collections/${encodeURIComponent(collection)}/create-file?${new URLSearchParams([['path', path], ['edit', '1']])}`}>Edit</a>
+        {/if}
+      </p>
     {/if}
     {#if readme}
       <Markdown markdown={readme}/>
