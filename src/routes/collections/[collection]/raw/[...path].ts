@@ -1,5 +1,5 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream } from '$lib/functions/io'
+import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream, bulkWriteIterable } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
@@ -7,6 +7,8 @@ import { isValid, isAuthorized } from '../_auth'
 import ammo from '@hapi/ammo'
 import streamAsyncIterator from '$lib/functions/stream-to-async-iterator'
 import iteratorToStream from '$lib/functions/async-iterator-to-stream'
+import { streamMultipart } from '@ssttevee/multipart-parser'
+import MIMEParser from '@saekitominaga/mime-parser'
 
 export const GET: RequestHandler = async function ({ request }) {
   try {
@@ -147,15 +149,27 @@ export const POST: RequestHandler = async function ({ request }) {
   if (!isWithin(dataPath, `collections/${collection}`)) return { status: 500 }
   if (!await isAuthorized(params, request)) return { status: 307, headers: { Location: '/identity/login' } }
 
-  const postBody = await request.json()
+  const mediaType = new MIMEParser(request.headers.get('Content-Type'))
+  if (mediaType.getEssence() === 'application/json') {
+    const postBody = await request.json()
 
-  if (typeof postBody !== 'object' || !postBody) {
-    return { status: 500, body: 'invalid post body, must be json object' }
-  } else if (postBody.type === 'bulk') {
-    await bulkWrite(dataPath, postBody.files)
-  } else {
-    return { status: 500, body: 'json body must specify type' }
+    if (typeof postBody !== 'object' || !postBody) {
+      return { status: 500, body: 'invalid post body, must be json object' }
+    } else if (postBody.type === 'bulk') {
+      await bulkWrite(dataPath, postBody.files)
+    } else {
+      return { status: 500, body: 'json body must specify type' }
+    }
+  } else if (mediaType.getEssence() === 'multipart/form-data') {
+    const boundary = mediaType.getParameter('boundary') || ''
+    await bulkWriteIterable(dataPath, (async function * generate () {
+      for await (const part of streamMultipart(request.body, boundary)) {
+        const path = part.name
+        yield { path, data: iteratorToStream(part.data) }
+      }
+    })())
   }
+
   const stats = await getInfo(dataPath)
 
   return {

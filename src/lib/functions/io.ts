@@ -148,10 +148,13 @@ export async function write (path: string | FileInfo, data: Uint8Array | Readabl
     await fs.writeFile(tmpfile, data)
   } else if (data instanceof ReadableStream) {
     const handle = await fs.open(tmpfile, 'w')
-    for await (const chunk of streamAsyncIterator(data)) {
-      await handle.write(chunk)
+    try {
+      for await (const chunk of streamAsyncIterator(data)) {
+        await handle.write(chunk)
+      }
+    } finally {
+      await handle.close()
     }
-    await handle.close()
   } else {
     throw new Error('data type is not supported')
   }
@@ -171,23 +174,47 @@ export async function write (path: string | FileInfo, data: Uint8Array | Readabl
 
 /** write an entire folder structure in one atomic action */
 export async function bulkWrite (path: string | FileInfo, files: BulkFiles) {
+  return await bulkWriteIterable (path, (async function * generate () {
+    for (const path in files) {
+      const value = files[path]
+      if (!value || typeof value !== 'object') throw new Error('values must be BulkFileContents objects')
+      if (value.encoding === 'base64') {
+        yield { path, data: Buffer.from(files[path].data, 'base64') }
+      } else if (value.encoding === 'string') {
+        yield { path, data: value.data }
+      } else {
+        throw new Error('Data in unsupported encoding')
+      }
+    }
+  })())
+}
+
+export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIterable<{ path: string, data: string | Uint8Array | ReadableStream }>) {
   const tmpFolder = nodePath.resolve(nodePath.join(siteConfig.tempFolder, nanoid()))
   const segments = pathToSegments(path)
   await fs.mkdir(tmpFolder, { recursive: true })
-  for (const filePath in files) {
+
+  for await (const { path: filePath, data: fileData } of iter) {
     const fileSegments = pathToSegments(filePath)
     const fileOSPath = nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments))
     if (!fileOSPath.startsWith(tmpFolder)) throw new Error('Security violation, file path unacceptable')
-    let fileData: string | Uint8Array = files[filePath].data
-    if (files[filePath].encoding === 'base64') fileData = new Uint8Array(decodeBase64(fileData))
-    try {
+
+    // ensure folder exists
+    await fs.mkdir(nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments.slice(0, -1))), { recursive: true })
+
+    if (typeof fileData === 'string' || fileData instanceof Uint8Array) {
       await fs.writeFile(fileOSPath, fileData)
-    } catch (err) {
-      // if write fails, try making sure the containing folder exists
-      if (fileSegments.length > 1) {
-        await fs.mkdir(nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments.slice(0, -1))), { recursive: true })
-        await fs.writeFile(fileOSPath, fileData)
+    } else if (fileData instanceof ReadableStream) {
+      const handle = await fs.open(fileOSPath, 'w')
+      try {
+        for await (const chunk of streamAsyncIterator(fileData)) {
+          await handle.write(chunk)
+        }
+      } finally {
+        await handle.close()
       }
+    } else {
+      throw new Error('data type is not supported, must be string, Uint8Array, or ReadableStream')
     }
   }
 
