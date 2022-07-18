@@ -12,6 +12,7 @@ import MIMEParser from '@saekitominaga/mime-parser'
 import createBrotliCompressionStream from '$lib/functions/brotli-compression-stream'
 import zlib from 'node:zlib'
 
+
 const BrotliOptions = {
   chunkSize: 32 * 1024,
   params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 }
@@ -44,6 +45,8 @@ export const GET: RequestHandler = async function ({ request }) {
       if (request.headers.has('Range')) {
         // const data = await read(dataPath)
         const ranges = ammo.header(request.headers.get('Range'), stats.size)
+        console.log('URL', request.url)
+        console.log('Ranges', ranges)
 
         if (ranges !== null && ranges.length === 1) {
           const [range] = ranges
@@ -100,45 +103,80 @@ export const GET: RequestHandler = async function ({ request }) {
 
       console.log(acceptEncodings)
 
-      if (acceptEncodings.includes('br')) {
+      // if (acceptEncodings.includes('br')) {
+      //   const pathParts = dataPath.split('/')
+      //   const brPath = [...pathParts.slice(0, -1), `#brotli-${pathParts.at(-1)}`].join('/')
+      //   try {
+      //     const brStats = await getInfo(brPath)
+      //     if (brStats.lastModified < stats.lastModified) {
+      //       throw new Error('Compressed version outdated')
+      //     }
+      //     console.log('Sending already compressed version')
+      //     return {
+      //       headers: {
+      //         ...headers,
+      //         'Content-Length': `${brStats.size}`,
+      //         'Content-Encoding': 'br'
+      //       },
+      //       body: await readStream(brPath)
+      //     }
+      //   } catch (err) {
+      //     // brotli encode doesn't exist, make one?
+      //     if (stats.type.startsWith('text/') || stats.type.startsWith('application/')) {
+      //       console.log(`Compressing ${dataPath}...`)
+      //       // return a compressed stream and store the result
+      //       const body = await readStream(dataPath)
+      //       const compressedStream = createBrotliCompressionStream(body, BrotliOptions)
+      //       // const [compressed1, compressed2] = compressedStream.tee()
+      //       // write it to filesystem but don't wait
+      //       // write(brPath, compressed1)
+
+      //       return {
+      //         headers: {
+      //           ...headers,
+      //           // 'Content-Length': `${stats.size}`,
+      //           'Content-Encoding': 'br'
+      //         },
+      //         body: compressedStream //compressed2
+      //       }
+      //     }
+      //   }
+      // }
+
+      if (acceptEncodings.includes('gzip')) {
         const pathParts = dataPath.split('/')
-        const brPath = [...pathParts.slice(0, -1), `#brotli-${pathParts.at(-1)}`].join('/')
+        const gzipPath = [...pathParts.slice(0, -1), `#compressed-${pathParts.at(-1)}.gz`].join('/')
+
         try {
-          const brStats = await getInfo(brPath)
-          if (brStats.lastModified < stats.lastModified) {
+          const gzipStats = await getInfo(gzipPath)
+          if (gzipStats.lastModified < stats.lastModified) {
             throw new Error('Compressed version outdated')
           }
-          console.log('Sending already compressed version')
+
           return {
             headers: {
               ...headers,
-              'Content-Length': `${stats.size}`,
-              'Content-Encoding': 'br'
+              'Content-Encoding': 'gzip'
             },
-            body: await readStream(brPath)
+            body: await readStream(gzipPath)
           }
         } catch (err) {
-          // brotli encode doesn't exist, make one?
-          if (stats.type.startsWith('text/') || stats.type.startsWith('application/')) {
-            console.log(`Compressing ${dataPath}...`)
-            // return a compressed stream and store the result
-            const body = await readStream(dataPath)
-            const compressedStream = body.pipeThrough(createBrotliCompressionStream(BrotliOptions))
-            const [compressed1, compressed2] = compressedStream.tee()
-            // write it to filesystem but don't wait
-            write(brPath, compressed1)
+          console.log(err)
+          console.log('Sending dynamic gzip compressed response')
+          const compressed = (await readStream(dataPath)).pipeThrough(new CompressionStream('gzip'))
+          const [fileCopy, streamCopy] = compressed.tee()
+          write(gzipPath, fileCopy)
 
-            return {
-              headers: {
-                ...headers,
-                'Content-Length': `${stats.size}`,
-                'Content-Encoding': 'br'
-              },
-              body: compressed2
-            }
+          return {
+            headers: {
+              ...headers,
+              'Content-Encoding': 'gzip'
+            },
+            body: streamCopy
           }
         }
       }
+
       console.log('Sending uncompressed response')
       // return a normal request
       return {
