@@ -1,5 +1,5 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, read, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream, bulkWriteIterable, exists } from '$lib/functions/io'
+import { list, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream, bulkWriteIterable } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
@@ -9,17 +9,18 @@ import streamAsyncIterator from '$lib/functions/stream-to-async-iterator'
 import iteratorToStream from '$lib/functions/async-iterator-to-stream'
 import { streamMultipart } from '@ssttevee/multipart-parser'
 import MIMEParser from '@saekitominaga/mime-parser'
-import createBrotliCompressionStream from '$lib/functions/brotli-compression-stream'
-import zlib from 'node:zlib'
+// import createBrotliCompressionStream from '$lib/functions/brotli-compression-stream'
+// import zlib from 'node:zlib'
 
 
-const BrotliOptions = {
-  chunkSize: 32 * 1024,
-  params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 }
-}
+// const BrotliOptions = {
+//   chunkSize: 32 * 1024,
+//   params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 }
+// }
 
 export const GET: RequestHandler = async function ({ request }) {
   const acceptEncodings = (request.headers.get('Accept-Encoding') || '').split(',').map(x => x.trim())
+  // console.log(request)
 
   try {
     const params = decodeCollectionURLPath((new URL(request.url)).pathname)
@@ -45,8 +46,8 @@ export const GET: RequestHandler = async function ({ request }) {
       if (request.headers.has('Range')) {
         // const data = await read(dataPath)
         const ranges = ammo.header(request.headers.get('Range'), stats.size)
-        console.log('URL', request.url)
-        console.log('Ranges', ranges)
+        // console.log('URL', request.url)
+        // console.log('Ranges', ranges)
 
         if (ranges !== null && ranges.length === 1) {
           const [range] = ranges
@@ -101,7 +102,7 @@ export const GET: RequestHandler = async function ({ request }) {
         }
       }
 
-      console.log(acceptEncodings)
+      // console.log(acceptEncodings)
 
       // if (acceptEncodings.includes('br')) {
       //   const pathParts = dataPath.split('/')
@@ -143,7 +144,7 @@ export const GET: RequestHandler = async function ({ request }) {
       //   }
       // }
 
-      if (acceptEncodings.includes('gzip')) {
+      if (stats.isCompressible && acceptEncodings.includes('gzip')) {
         const pathParts = dataPath.split('/')
         const gzipPath = [...pathParts.slice(0, -1), `#compressed-${pathParts.at(-1)}.gz`].join('/')
 
@@ -161,8 +162,8 @@ export const GET: RequestHandler = async function ({ request }) {
             body: await readStream(gzipPath)
           }
         } catch (err) {
-          console.log(err)
-          console.log('Sending dynamic gzip compressed response')
+          // console.log(err)
+          // console.log('Sending dynamic gzip compressed response')
           const compressed = (await readStream(dataPath)).pipeThrough(new CompressionStream('gzip'))
           const [fileCopy, streamCopy] = compressed.tee()
           write(gzipPath, fileCopy)
@@ -177,7 +178,6 @@ export const GET: RequestHandler = async function ({ request }) {
         }
       }
 
-      console.log('Sending uncompressed response')
       // return a normal request
       return {
         headers: {

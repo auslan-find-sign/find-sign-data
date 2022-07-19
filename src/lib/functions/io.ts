@@ -9,6 +9,11 @@ import streamAsyncIterator from './stream-to-async-iterator'
 
 // @ts-ignore
 mimeDB['application/cbor'].extensions = ['cbor']
+mimeDB['application/x-length-prefixed-vectors'] = {
+  source: 'find-sign',
+  extensions: ['lps'],
+  compressible: true,
+}
 
 const extToMimeType = Object.fromEntries(
   Object.entries(mimeDB).flatMap(([type, obj]) =>
@@ -26,6 +31,7 @@ export type FileInfo = {
   path: string, // full path to file
   isFile: boolean, // is this item a file?
   isFolder: boolean, // is this item a folder?
+  isCompressible: boolean, // is it worthwhile to try to compress this file?
 }
 
 // if it's been stringified through json it looks like this
@@ -39,6 +45,7 @@ export type FileInfoJSON = {
   path: string, // full path to file
   isFile: boolean, // is this item a file?
   isFolder: boolean, // is this item a folder?
+  isCompressible: boolean, // is it worthwhile to try to compress this file?
 }
 
 export type BulkFiles = {
@@ -290,13 +297,15 @@ export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
   const pathString = typeof path === 'string' ? path : path.path
   const osPath = fileToOSPath(pathString)
   const stats = await tfq.lockWhile('io', () => fs.stat(osPath))
+  const type = pathString.split('/').at(-1).includes('.') ? extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream' : 'application/octet-stream'
   const info = {
     name: pathToSegments(pathString).at(-1),
     path: pathString,
-    type: pathString.split('/').at(-1).includes('.') ? extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream' : 'application/octet-stream',
+    type,
     size: stats.size,
     isFile: stats.isFile() || stats.isSymbolicLink(),
     isFolder: stats.isDirectory(),
+    isCompressible: !!mimeDB[type].compressible,
     lastModified: stats.mtime,
     created: stats.ctime,
     etag: `"${Math.round(stats.mtimeMs).toString(36)}:${stats.ino}:${stats.size}"`
