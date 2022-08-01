@@ -251,6 +251,9 @@ export const POST: RequestHandler = async function ({ request }) {
       return { status: 500, body: 'json body must specify type' }
     }
   } else if (mediaType.getEssence() === 'multipart/form-data') {
+    const dup = request.clone()
+    console.log('req body')
+    console.log(await dup.text())
     const formData = await request.formData()
     if (formData.get('type') === 'bulk') {
       const files = formData.getAll('files[]')
