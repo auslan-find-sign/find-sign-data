@@ -253,8 +253,10 @@ export const POST: RequestHandler = async function ({ request }) {
     const boundary = mediaType.getParameter('boundary') || ''
     await bulkWriteIterable(dataPath, (async function * generate () {
       for await (const part of streamMultipart(request.body, boundary)) {
-        const path = part.name
-        yield { path, data: iteratorToStream(part.data) }
+        if (part.name === 'files[]' && part.filename) {
+          const path = part.filename
+          yield { path, data: iteratorToStream(part.data) }
+        }
       }
     })())
   }
