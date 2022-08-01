@@ -101,10 +101,14 @@ export async function listStrings (path: string | FileInfo): Promise<string[]> {
   return dirlist.sort(collator.compare)
 }
 
+function toU8 (nodeBuffer: Buffer) {
+  return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength)
+}
+
 /** read a file */
 export async function read (path: string | FileInfo): Promise<Uint8Array> {
   const nodeBuffer = await tfq.lockWhile('io', () => fs.readFile(fileToOSPath(path)))
-  return new Uint8Array(nodeBuffer.buffer, nodeBuffer.byteOffset, nodeBuffer.byteOffset + nodeBuffer.byteLength)
+  return toU8(nodeBuffer)
 }
 
 export async function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}): Promise<ReadableStream<Uint8Array>> {
@@ -128,7 +132,7 @@ export async function readStream (path: string | FileInfo, { start = undefined, 
       if (bytesRead > 0) {
         if (typeof length === 'number') {
           if (bytesRead > length) {
-            controller.enqueue(buffer.slice(0, length))
+            controller.enqueue(toU8(buffer.slice(0, length)))
             handle.close()
             controller.close()
             return
@@ -136,7 +140,7 @@ export async function readStream (path: string | FileInfo, { start = undefined, 
           length -= bytesRead
         }
         position += bytesRead
-        controller.enqueue(buffer.slice(0, bytesRead))
+        controller.enqueue(toU8(buffer.slice(0, bytesRead)))
       } else {
         handle.close()
         controller.close()
@@ -315,15 +319,17 @@ export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
     // recursively add file sizes and find latest mtime
     info.size = 0
     const walk = async (path) => {
-      const listing = await tfq.lockWhile('io', () => fs.readdir(path, { withFileTypes: true }))
+      const listing = await fs.readdir(path, { withFileTypes: true })
       for (const entry of listing) {
-        if (entry.isDirectory()) {
-          await walk(nodePath.join(path, entry.name))
-        } else if (entry.isFile() || entry.isSymbolicLink()) {
-          const stats = await tfq.lockWhile('io', () => fs.stat(nodePath.join(path, entry.name)))
-          info.size += stats.size
-          if (info.lastModified < stats.mtime){
-            info.lastModified = stats.mtime
+        if (!entry.name.startsWith('#')) {
+          if (entry.isDirectory()) {
+            await walk(nodePath.join(path, entry.name))
+          } else if (entry.isFile() || entry.isSymbolicLink()) {
+            const stats = await fs.stat(nodePath.join(path, entry.name))
+            info.size += stats.size
+            if (info.lastModified < stats.mtime){
+              info.lastModified = stats.mtime
+            }
           }
         }
       }
