@@ -251,20 +251,28 @@ export const POST: RequestHandler = async function ({ request }) {
       return { status: 500, body: 'json body must specify type' }
     }
   } else if (mediaType.getEssence() === 'multipart/form-data') {
-    console.log('iterating multipart')
-    const boundary = mediaType.getParameter('boundary') || ''
-    await bulkWriteIterable(dataPath, (async function * generate () {
-      console.log('boundary', boundary)
-      for await (const part of streamMultipart(request.body, boundary)) {
-        console.log('part', part)
-        if (part.name === 'files[]' && part.filename) {
-          const path = part.filename
-          console.log('path', path)
-          yield { path, data: iteratorToStream(part.data) }
-        }
+    const formData = await request.formData()
+    if (formData.get('type') === 'bulk') {
+      console.log('files[]', ...formData.getAll('files[]'))
+      console.log('files:')
+      for (const entry of formData.entries()) {
+        console.log(entry)
       }
-    })())
-    console.log('finished writing')
+    }
+    // console.log('iterating multipart')
+    // const boundary = mediaType.getParameter('boundary') || ''
+    // await bulkWriteIterable(dataPath, (async function * generate () {
+    //   console.log('boundary', boundary)
+    //   for await (const part of streamMultipart(request.body, boundary)) {
+    //     console.log('part', part)
+    //     if (part.name === 'files[]' && part.filename) {
+    //       const path = part.filename
+    //       console.log('path', path)
+    //       yield { path, data: iteratorToStream(part.data) }
+    //     }
+    //   }
+    // })())
+    // console.log('finished writing')
   }
 
   const stats = await getInfo(dataPath)
