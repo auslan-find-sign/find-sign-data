@@ -203,30 +203,36 @@ export async function bulkWrite (path: string | FileInfo, files: BulkFiles) {
 export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIterable<{ path: string, data: string | Uint8Array | ReadableStream }>) {
   const tmpFolder = nodePath.resolve(nodePath.join(siteConfig.tempFolder, nanoid()))
   const segments = pathToSegments(path)
-  await fs.mkdir(tmpFolder, { recursive: true })
 
-  for await (const { path: filePath, data: fileData } of iter) {
-    const fileSegments = pathToSegments(filePath)
-    const fileOSPath = nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments))
-    if (!fileOSPath.startsWith(tmpFolder)) throw new Error('Security violation, file path unacceptable')
+  try {
+    await fs.mkdir(tmpFolder, { recursive: true })
 
-    // ensure folder exists
-    await fs.mkdir(nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments.slice(0, -1))), { recursive: true })
+    for await (const { path: filePath, data: fileData } of iter) {
+      const fileSegments = pathToSegments(filePath)
+      const fileOSPath = nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments))
+      if (!fileOSPath.startsWith(tmpFolder)) throw new Error('Security violation, file path unacceptable')
 
-    if (typeof fileData === 'string' || fileData instanceof Uint8Array) {
-      await fs.writeFile(fileOSPath, fileData)
-    } else if (fileData instanceof ReadableStream) {
-      const handle = await fs.open(fileOSPath, 'w')
-      try {
-        for await (const chunk of streamAsyncIterator(fileData)) {
-          await handle.write(chunk)
+      // ensure folder exists
+      await fs.mkdir(nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments.slice(0, -1))), { recursive: true })
+
+      if (typeof fileData === 'string' || fileData instanceof Uint8Array) {
+        await fs.writeFile(fileOSPath, fileData)
+      } else if (fileData instanceof ReadableStream) {
+        const handle = await fs.open(fileOSPath, 'w')
+        try {
+          for await (const chunk of streamAsyncIterator(fileData)) {
+            await handle.write(chunk)
+          }
+        } finally {
+          await handle.close()
         }
-      } finally {
-        await handle.close()
+      } else {
+        throw new Error('data type is not supported, must be string, Uint8Array, or ReadableStream')
       }
-    } else {
-      throw new Error('data type is not supported, must be string, Uint8Array, or ReadableStream')
     }
+  } catch (err) {
+    await fs.rm(tmpFolder, { recursive: true })
+    throw err
   }
 
   // move the folder in to place
@@ -243,7 +249,10 @@ export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIte
     })
     fs.rm(trashPath, { recursive: true, force: true })
   } else {
-    await tfq.lockWhile('io', () => fs.rename(tmpFolder, destinationOSPath))
+    await tfq.lockWhile('io', async () => {
+      if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
+      await fs.rename(tmpFolder, destinationOSPath)
+    })
   }
 }
 
