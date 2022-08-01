@@ -254,7 +254,13 @@ export const POST: RequestHandler = async function ({ request }) {
     const formData = await request.formData()
     if (formData.get('type') === 'bulk') {
       const files = formData.getAll('files[]')
-      await bulkWriteIterable(dataPath, files)
+      await bulkWriteIterable(dataPath, (async function * gen () {
+        for (const file of files) {
+          if (typeof file === 'object') {
+            yield { path: file.name, data: new Uint8Array(await file.arrayBuffer()) }
+          }
+        }
+      })())
     }
     // console.log('iterating multipart')
     // const boundary = mediaType.getParameter('boundary') || ''

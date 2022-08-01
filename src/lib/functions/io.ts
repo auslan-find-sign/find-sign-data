@@ -199,22 +199,14 @@ export async function bulkWrite (path: string | FileInfo, files: BulkFiles) {
   })())
 }
 
-export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIterable<File | { path: string, data: string | Uint8Array | ReadableStream<Uint8Array> }>) {
+export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIterable<{ path: string, data: string | Uint8Array | ReadableStream<Uint8Array> }>) {
   const tmpFolder = nodePath.resolve(nodePath.join(siteConfig.tempFolder, nanoid()))
   const segments = pathToSegments(path)
 
   try {
     await fs.mkdir(tmpFolder, { recursive: true })
 
-    for await (const fileObj of iter) {
-      let filePath: string, fileData: string | Uint8Array | ReadableStream<Uint8Array>
-      if ('arrayBuffer' in fileObj) {
-        filePath = fileObj.name
-        fileData = new Uint8Array(await fileObj.arrayBuffer())
-      } else {
-        ({ path: filePath, data: fileData } = fileObj)
-      }
-
+    for await (const { path: filePath, data: fileData } of iter) {
       const fileSegments = pathToSegments(filePath)
       const fileOSPath = nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments))
       if (!fileOSPath.startsWith(tmpFolder)) throw new Error('Security violation, file path unacceptable')
