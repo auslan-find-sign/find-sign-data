@@ -4,7 +4,6 @@ import fs from 'node:fs/promises'
 import nodePath from 'node:path'
 import mimeDB from 'mime-db/db.json'
 import { nanoid } from 'nanoid'
-import { decode as decodeBase64 } from 'base64-arraybuffer'
 import streamAsyncIterator from './stream-to-async-iterator'
 
 // @ts-ignore
@@ -200,14 +199,22 @@ export async function bulkWrite (path: string | FileInfo, files: BulkFiles) {
   })())
 }
 
-export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIterable<{ path: string, data: string | Uint8Array | ReadableStream }>) {
+export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIterable<File | { path: string, data: string | Uint8Array | ReadableStream<Uint8Array> }>) {
   const tmpFolder = nodePath.resolve(nodePath.join(siteConfig.tempFolder, nanoid()))
   const segments = pathToSegments(path)
 
   try {
     await fs.mkdir(tmpFolder, { recursive: true })
 
-    for await (const { path: filePath, data: fileData } of iter) {
+    for await (const fileObj of iter) {
+      let filePath: string, fileData: string | Uint8Array | ReadableStream<Uint8Array>
+      if ('arrayBuffer' in fileObj) {
+        filePath = fileObj.name
+        fileData = new Uint8Array(await fileObj.arrayBuffer())
+      } else {
+        ({ path: filePath, data: fileData } = fileObj)
+      }
+
       const fileSegments = pathToSegments(filePath)
       const fileOSPath = nodePath.resolve(nodePath.join(tmpFolder, ...fileSegments))
       if (!fileOSPath.startsWith(tmpFolder)) throw new Error('Security violation, file path unacceptable')
