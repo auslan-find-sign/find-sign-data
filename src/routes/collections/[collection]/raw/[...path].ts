@@ -20,7 +20,6 @@ import MIMEParser from '@saekitominaga/mime-parser'
 
 export const GET: RequestHandler = async function ({ request }) {
   const acceptEncodings = (request.headers.get('Accept-Encoding') || '').split(',').map(x => x.trim())
-  // console.log(request)
 
   try {
     const params = decodeCollectionURLPath((new URL(request.url)).pathname)
@@ -44,10 +43,7 @@ export const GET: RequestHandler = async function ({ request }) {
       }
 
       if (request.headers.has('Range')) {
-        // const data = await read(dataPath)
         const ranges = ammo.header(request.headers.get('Range'), stats.size)
-        // console.log('URL', request.url)
-        // console.log('Ranges', ranges)
 
         if (ranges !== null && ranges.length === 1) {
           const [range] = ranges
@@ -101,48 +97,6 @@ export const GET: RequestHandler = async function ({ request }) {
           }
         }
       }
-
-      // console.log(acceptEncodings)
-
-      // if (acceptEncodings.includes('br')) {
-      //   const pathParts = dataPath.split('/')
-      //   const brPath = [...pathParts.slice(0, -1), `#brotli-${pathParts.at(-1)}`].join('/')
-      //   try {
-      //     const brStats = await getInfo(brPath)
-      //     if (brStats.lastModified < stats.lastModified) {
-      //       throw new Error('Compressed version outdated')
-      //     }
-      //     console.log('Sending already compressed version')
-      //     return {
-      //       headers: {
-      //         ...headers,
-      //         'Content-Length': `${brStats.size}`,
-      //         'Content-Encoding': 'br'
-      //       },
-      //       body: await readStream(brPath)
-      //     }
-      //   } catch (err) {
-      //     // brotli encode doesn't exist, make one?
-      //     if (stats.type.startsWith('text/') || stats.type.startsWith('application/')) {
-      //       console.log(`Compressing ${dataPath}...`)
-      //       // return a compressed stream and store the result
-      //       const body = await readStream(dataPath)
-      //       const compressedStream = createBrotliCompressionStream(body, BrotliOptions)
-      //       // const [compressed1, compressed2] = compressedStream.tee()
-      //       // write it to filesystem but don't wait
-      //       // write(brPath, compressed1)
-
-      //       return {
-      //         headers: {
-      //           ...headers,
-      //           // 'Content-Length': `${stats.size}`,
-      //           'Content-Encoding': 'br'
-      //         },
-      //         body: compressedStream //compressed2
-      //       }
-      //     }
-      //   }
-      // }
 
       if (stats.isCompressible && acceptEncodings.includes('gzip')) {
         const pathParts = dataPath.split('/')

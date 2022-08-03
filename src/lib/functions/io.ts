@@ -1,6 +1,6 @@
 import siteConfig from '$lib/site-config.json'
-import tfq from 'tiny-function-queue'
 import fs from 'node:fs/promises'
+import PQueue from 'p-queue'
 import nodePath from 'node:path'
 import mimeDB from 'mime-db/db.json'
 import { nanoid } from 'nanoid'
@@ -19,6 +19,9 @@ const extToMimeType = Object.fromEntries(
     'extensions' in obj ? obj.extensions.map(ext => [ext, type]) : []
   )
 )
+
+const serialQueue = new PQueue({ concurrency: 1 })
+const parallelQueue = new PQueue({ concurrency: 20 })
 
 export type FileInfo = {
   name: string, // filename
@@ -93,7 +96,7 @@ export async function list (path: string | FileInfo): Promise<FileInfo[]> {
 /** returns an array of strings for what's inside this path */
 export async function listStrings (path: string | FileInfo): Promise<string[]> {
   const dirPath = fileToOSPath(path)
-  const dirlist = await tfq.lockWhile('io', () => fs.readdir(dirPath))
+  const dirlist = await serialQueue.add(() => fs.readdir(dirPath))
 
   // sort with the nice natural number sorting
   var collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
@@ -106,12 +109,12 @@ function toU8 (nodeBuffer: Buffer) {
 
 /** read a file */
 export async function read (path: string | FileInfo): Promise<Uint8Array> {
-  const nodeBuffer = await tfq.lockWhile('io', () => fs.readFile(fileToOSPath(path)))
+  const nodeBuffer = await serialQueue.add(() => fs.readFile(fileToOSPath(path)))
   return toU8(nodeBuffer)
 }
 
 export async function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}): Promise<ReadableStream<Uint8Array>> {
-  const handle: fs.FileHandle = await tfq.lockWhile('io', () =>
+  const handle: fs.FileHandle = await serialQueue.add(() =>
     fs.open(fileToOSPath(path), 'r')
   )
 
@@ -169,12 +172,12 @@ export async function write (path: string | FileInfo, data: Uint8Array | Readabl
     throw new Error('data type is not supported')
   }
   try {
-    await tfq.lockWhile('io', () => fs.rename(tmpfile, fileToOSPath(path)))
+    await serialQueue.add(() => fs.rename(tmpfile, fileToOSPath(path)))
   } catch (err) {
     const segments = pathToSegments(path)
     try {
       if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
-      await tfq.lockWhile('io', () => fs.rename(tmpfile, fileToOSPath(path)))
+      await serialQueue.add(() => fs.rename(tmpfile, fileToOSPath(path)))
     } catch (err2) {
       fs.rm(tmpfile) // tidy up temps
       throw err2
@@ -230,7 +233,7 @@ export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIte
       }
     }
   } catch (err) {
-    await fs.rm(tmpFolder, { recursive: true })
+    fs.rm(tmpFolder, { recursive: true, force: true })
     throw err
   }
 
@@ -241,14 +244,14 @@ export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIte
     // to support it anyway, and it only is possible on relatively modern linux kernels, this crappy
     // workaround is needed, using locks to stall reads while non-atomic swap is done.
     const trashPath = destinationOSPath.replace(/\/([^\/]+)$/, `/#trash-${nanoid()}-$1`)
-    await tfq.lockWhile('io', async () => {
+    await serialQueue.add(async () => {
       // this is why tfq is used, for fake atomic situations like this
       await fs.rename(destinationOSPath, trashPath)
       await fs.rename(tmpFolder, destinationOSPath)
     })
     fs.rm(trashPath, { recursive: true, force: true })
   } else {
-    await tfq.lockWhile('io', async () => {
+    await serialQueue.add(async () => {
       if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
       await fs.rename(tmpFolder, destinationOSPath)
     })
@@ -268,11 +271,11 @@ export async function writeUnique (folder: string | FileInfo, data: string | Uin
 export async function append (path: string | FileInfo, data: Uint8Array | string) {
   const destination = fileToOSPath(path)
   try {
-    await tfq.lockWhile('io', () => fs.appendFile(destination, data))
+    await serialQueue.add(() => fs.appendFile(destination, data))
   } catch (err) {
     try {
       await ensureFolder(pathToSegments(path).slice(0, -1).join('/'))
-      await tfq.lockWhile('io', () => fs.appendFile(destination, data))
+      await serialQueue.add(() => fs.appendFile(destination, data))
     } catch (_) {
       throw err
     }
@@ -282,7 +285,7 @@ export async function append (path: string | FileInfo, data: Uint8Array | string
 /** delete a file or folder */
 export async function remove (path: string | FileInfo) {
   const destination = fileToOSPath(path)
-  await tfq.lockWhile('io', () => fs.rm(destination, { recursive: true, force: true, maxRetries: 100 }))
+  await serialQueue.add(() => fs.rm(destination, { recursive: true, force: true, maxRetries: 100 }))
 }
 
 /** ensure a folder exists at the path, and all the parent folders above it */
@@ -295,7 +298,7 @@ export async function exists (path: string | FileInfo, kind?: 'file' | 'folder')
   try {
     const pathString = typeof path === 'string' ? path : path.path
     const osPath = fileToOSPath(pathString)
-    const stats = await tfq.lockWhile('io', () => fs.stat(osPath))
+    const stats = await serialQueue.add(() => fs.stat(osPath))
     if (kind && kind === 'file') return stats.isFile()
     if (kind && kind === 'folder') return stats.isDirectory()
     return true
@@ -306,47 +309,49 @@ export async function exists (path: string | FileInfo, kind?: 'file' | 'folder')
 
 /** get FileInfo object for a path, or throw an error if it doesn't exist */
 export async function getInfo (path: string | FileInfo): Promise<FileInfo> {
-  const pathString = typeof path === 'string' ? path : path.path
-  const osPath = fileToOSPath(pathString)
-  const stats = await tfq.lockWhile('io', () => fs.stat(osPath))
-  const type = pathString.split('/').at(-1).includes('.') ? extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream' : 'application/octet-stream'
-  const info = {
-    name: pathToSegments(pathString).at(-1),
-    path: pathString,
-    type,
-    size: stats.size,
-    isFile: stats.isFile() || stats.isSymbolicLink(),
-    isFolder: stats.isDirectory(),
-    isCompressible: !!mimeDB[type].compressible,
-    lastModified: stats.mtime,
-    created: stats.ctime,
-    etag: `"${Math.round(stats.mtimeMs).toString(36)}:${stats.ino}:${stats.size}"`
-  }
-
-  if (info.isFolder) {
-    // recursively add file sizes and find latest mtime
-    info.size = 0
-    const walk = async (path) => {
-      const listing = await fs.readdir(path, { withFileTypes: true })
-      for (const entry of listing) {
-        if (!entry.name.startsWith('#')) {
-          if (entry.isDirectory()) {
-            await walk(nodePath.join(path, entry.name))
-          } else if (entry.isFile() || entry.isSymbolicLink()) {
-            const stats = await fs.stat(nodePath.join(path, entry.name))
-            info.size += stats.size
-            if (info.lastModified < stats.mtime){
-              info.lastModified = stats.mtime
-            }
-          }
-        }
-      }
+  return await serialQueue.add(async () => {
+    const pathString = typeof path === 'string' ? path : path.path
+    const osPath = fileToOSPath(pathString)
+    const stats = await fs.stat(osPath)
+    const type = pathString.split('/').at(-1).includes('.') ? extToMimeType[pathString.split('.').at(-1)] || 'application/octet-stream' : 'application/octet-stream'
+    const info = {
+      name: pathToSegments(pathString).at(-1),
+      path: pathString,
+      type,
+      size: stats.size,
+      isFile: stats.isFile() || stats.isSymbolicLink(),
+      isFolder: stats.isDirectory(),
+      isCompressible: !!mimeDB[type].compressible,
+      lastModified: stats.mtime,
+      created: stats.ctime,
+      etag: `"${Math.round(stats.mtimeMs).toString(36)}:${stats.ino}:${stats.size}"`
     }
 
-    await walk(fileToOSPath(info.path))
-  }
+    if (info.isFolder) {
+      // recursively add file sizes and find latest mtime
+      info.size = 0
+      const walk = async (path) => {
+        const listing = await fs.readdir(path, { withFileTypes: true })
+        await Promise.all(listing.map(async entry => {
+          if (!entry.name.startsWith('#')) {
+            if (entry.isDirectory()) {
+              await parallelQueue.add(() => walk(nodePath.join(path, entry.name)))
+            } else if (entry.isFile() || entry.isSymbolicLink()) {
+              const stats = await fs.stat(nodePath.join(path, entry.name))
+              info.size += stats.size
+              if (info.lastModified < stats.mtime){
+                info.lastModified = stats.mtime
+              }
+            }
+          }
+        }))
+      }
 
-  return info
+      await parallelQueue.add(() => walk(fileToOSPath(info.path)))
+    }
+
+    return info
+  })
 }
 
 /** check if a path is within another path */

@@ -6,7 +6,6 @@
     "build": "vite build",
     "package": "svelte-kit package",
     "preview": "vite preview",
-    "prepare": "svelte-kit sync",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
     "test": "vitest",
@@ -44,12 +43,12 @@
     "marked": "^4.0.14",
     "mime-db": "^1.52.0",
     "nanoid": "^4.0.0",
+    "p-queue": "^7.3.0",
     "pigeonmark-arbitrary": "^1.0.3",
     "pigeonmark-html": "^1.0.2",
     "pigeonmark-utils": "^2.0.2",
     "pigeonmark-xml": "^1.0.1",
     "string-natural-compare": "^3.0.1",
-    "tiny-function-queue": "^1.0.1",
     "tweetnacl-ts": "^1.0.3"
   }
 }
