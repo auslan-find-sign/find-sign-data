@@ -1,10 +1,14 @@
 import siteConfig from '$lib/site-config.json'
 import fs from 'node:fs/promises'
+import { createReadStream, createWriteStream } from 'node:fs'
 import PQueue from 'p-queue'
 import nodePath from 'node:path'
 import mimeDB from 'mime-db/db.json'
 import { nanoid } from 'nanoid'
 import streamAsyncIterator from './stream-to-async-iterator'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { ReadableStream } from 'node:stream/web'
 
 // @ts-ignore
 mimeDB['application/cbor'].extensions = ['cbor']
@@ -114,93 +118,41 @@ export async function read (path: string | FileInfo): Promise<Uint8Array> {
 }
 
 export function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}): ReadableStream<Uint8Array> {
-  let handle: fs.FileHandle
-
-  let position = 0
-  if (typeof start === 'number') position = start
-
-  return new ReadableStream({
-    // @ts-ignore-error
-    type: 'bytes',
-
-    async start(controller) {
-      try {
-        handle = await serialQueue.add(() =>
-          fs.open(fileToOSPath(path), 'r')
-        )
-      } catch (err) {
-        controller.error(err)
-      }
-    },
-
-    async pull (controller) {
-      try {
-        // @ts-ignore-error
-        if (controller.byobRequest) {
-          // @ts-ignore-error
-          const view = controller.byobRequest.view;
-          const { bytesRead } = await handle.read({
-            position,
-            buffer: view.buffer,
-            offset: view.byteOffset,
-            length: view.byteLength,
-          })
-
-          if (bytesRead === 0) {
-            handle.close()
-            controller.close()
-          }
-
-          // @ts-ignore-error
-          controller.byobRequest.respond(bytesRead)
-        } else {
-          const chunkSize = controller.desiredSize !== null && controller.desiredSize > 0
-                            ? controller.desiredSize
-                            : 1024 * 16
-          const requestLength = typeof length === 'number' ? Math.min(length, chunkSize) : chunkSize
-
-          const { bytesRead, buffer } = await handle.read({ position, length: requestLength })
-
-          if (bytesRead > 0) {
-            position += bytesRead
-            controller.enqueue(toU8(buffer.subarray(0, bytesRead)))
-
-            if (typeof length === 'number') {
-              length -= bytesRead
-            }
-          } else {
-            controller.close()
-            handle.close()
-          }
-        }
-      } catch (err) {
-        handle.close()
-        controller.error(err)
-      }
-    },
-    cancel () {
-      handle.close()
-    }
-  })
+  return Readable.toWeb(createReadStream(fileToOSPath(path), {
+    start: typeof start === 'number' ? start : 0,
+    end: typeof length === 'number' ? (typeof start === 'number' ? start : 0) + length - 1 : Infinity
+  }))
 }
 
 /** rewrite the contents of a file, with no downtime (rename-over) */
 export async function write (path: string | FileInfo, data: Uint8Array | ReadableStream | string) {
   const tmpfile = nodePath.join(siteConfig.tempFolder, nanoid())
-  if (typeof data === 'string' || data instanceof Uint8Array) {
-    await fs.writeFile(tmpfile, data)
-  } else if (data instanceof ReadableStream) {
-    const handle = await fs.open(tmpfile, 'w')
-    try {
-      for await (const chunk of streamAsyncIterator(data, true)) {
-        await handle.write(chunk)
-      }
-    } finally {
-      await handle.close()
+  try {
+    if (typeof data === 'string' || data instanceof Uint8Array) {
+      await fs.writeFile(tmpfile, data)
+    } else if (data instanceof ReadableStream) {
+      await pipeline(
+        (async function * generator () {
+          const reader = data.getReader()
+          for (;;) {
+            const { value, done } = await reader.read()
+            if (!done) {
+              yield value
+            } else {
+              return
+            }
+          }
+        }),
+        createWriteStream(tmpfile)
+      )
+    } else {
+      throw new Error('data type is not supported')
     }
-  } else {
-    throw new Error('data type is not supported')
+  } catch (err) {
+    fs.rm(tmpfile).catch((err) => console.info('tried to rm tmpfile:', err))
+    throw err
   }
+
   try {
     await serialQueue.add(() => fs.rename(tmpfile, fileToOSPath(path)))
   } catch (err) {
