@@ -113,43 +113,73 @@ export async function read (path: string | FileInfo): Promise<Uint8Array> {
   return toU8(nodeBuffer)
 }
 
-export async function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}): Promise<ReadableStream<Uint8Array>> {
-  const handle: fs.FileHandle = await serialQueue.add(() =>
-    fs.open(fileToOSPath(path), 'r')
-  )
+export function readStream (path: string | FileInfo, { start = undefined, length = undefined }:{start?: number, length?: number} = {}): ReadableStream<Uint8Array> {
+  let handle: fs.FileHandle
 
   let position = 0
   if (typeof start === 'number') position = start
 
-
   return new ReadableStream({
-    async pull (controller) {
-      let bytesRead, buffer
+    // @ts-ignore-error
+    type: 'bytes',
+
+    async start(controller) {
       try {
-        ({ bytesRead, buffer } = await handle.read({ position }))
+        handle = await serialQueue.add(() =>
+          fs.open(fileToOSPath(path), 'r')
+        )
       } catch (err) {
         controller.error(err)
-        await handle.close()
-      }
-      if (bytesRead > 0) {
-        if (typeof length === 'number') {
-          if (bytesRead > length) {
-            controller.enqueue(toU8(buffer.slice(0, length)))
-            handle.close()
-            controller.close()
-            return
-          }
-          length -= bytesRead
-        }
-        position += bytesRead
-        controller.enqueue(toU8(buffer.slice(0, bytesRead)))
-      } else {
-        handle.close()
-        controller.close()
       }
     },
-    async cancel () {
-      await handle.close()
+
+    async pull (controller) {
+      try {
+        // @ts-ignore-error
+        if (controller.byobRequest) {
+          // @ts-ignore-error
+          const view = controller.byobRequest.view;
+          const { bytesRead } = await handle.read({
+            position,
+            buffer: view.buffer,
+            offset: view.byteOffset,
+            length: view.byteLength,
+          })
+
+          if (bytesRead === 0) {
+            handle.close()
+            controller.close()
+          }
+
+          // @ts-ignore-error
+          controller.byobRequest.respond(bytesRead)
+        } else {
+          const chunkSize = controller.desiredSize !== null && controller.desiredSize > 0
+                            ? controller.desiredSize
+                            : 1024 * 16
+          const requestLength = typeof length === 'number' ? Math.min(length, chunkSize) : chunkSize
+
+          const { bytesRead, buffer } = await handle.read({ position, length: requestLength })
+
+          if (bytesRead > 0) {
+            position += bytesRead
+            controller.enqueue(toU8(buffer.subarray(0, bytesRead)))
+
+            if (typeof length === 'number') {
+              length -= bytesRead
+            }
+          } else {
+            controller.close()
+            handle.close()
+          }
+        }
+      } catch (err) {
+        handle.close()
+        controller.error(err)
+      }
+    },
+    cancel () {
+      handle.close()
     }
   })
 }
@@ -162,7 +192,7 @@ export async function write (path: string | FileInfo, data: Uint8Array | Readabl
   } else if (data instanceof ReadableStream) {
     const handle = await fs.open(tmpfile, 'w')
     try {
-      for await (const chunk of streamAsyncIterator(data)) {
+      for await (const chunk of streamAsyncIterator(data, true)) {
         await handle.write(chunk)
       }
     } finally {
@@ -174,10 +204,12 @@ export async function write (path: string | FileInfo, data: Uint8Array | Readabl
   try {
     await serialQueue.add(() => fs.rename(tmpfile, fileToOSPath(path)))
   } catch (err) {
-    const segments = pathToSegments(path)
     try {
-      if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
-      await serialQueue.add(() => fs.rename(tmpfile, fileToOSPath(path)))
+      await serialQueue.add(async () => {
+        const segments = pathToSegments(path)
+        if (segments.length > 1) await ensureFolder(segments.slice(0, -1).join('/'))
+        await fs.rename(tmpfile, fileToOSPath(path))
+      })
     } catch (err2) {
       fs.rm(tmpfile) // tidy up temps
       throw err2
@@ -222,7 +254,7 @@ export async function bulkWriteIterable (path: string | FileInfo, iter: AsyncIte
       } else if (fileData instanceof ReadableStream) {
         const handle = await fs.open(fileOSPath, 'w')
         try {
-          for await (const chunk of streamAsyncIterator(fileData)) {
+          for await (const chunk of streamAsyncIterator(fileData, true)) {
             await handle.write(chunk)
           }
         } finally {

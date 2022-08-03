@@ -14,7 +14,7 @@
       {#if (new URL(href, $page.url)).pathname === (new URL($page.url).pathname)}
         <li>{label}</li>
       {:else}
-        <li><a href={href}>{label}</a></li>
+        <li><a href={href} sveltekit:prefetch>{label}</a></li>
       {/if}
     {/each}
   </ol>
