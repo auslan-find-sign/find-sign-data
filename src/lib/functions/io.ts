@@ -21,7 +21,7 @@ const extToMimeType = Object.fromEntries(
 )
 
 const serialQueue = new PQueue({ concurrency: 1 })
-const parallelQueue = new PQueue({ concurrency: 20 })
+const parallelQueue = new PQueue({ concurrency: 100 })
 
 export type FileInfo = {
   name: string, // filename
