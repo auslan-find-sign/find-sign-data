@@ -160,7 +160,7 @@ export const GET: RequestHandler = async function ({ request }) {
     }
   } catch (err) {
     if (err.code === 'ENOENT') {
-      return { status: 404 }
+      return { status: 404, body: '' }
     } else {
       throw err
     }
