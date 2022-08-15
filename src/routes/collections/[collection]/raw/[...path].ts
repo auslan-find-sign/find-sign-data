@@ -7,7 +7,6 @@ import { isValid, isAuthorized } from '../_auth'
 import ammo from '@hapi/ammo'
 import streamAsyncIterator from '$lib/functions/stream-to-async-iterator'
 import iteratorToStream from '$lib/functions/async-iterator-to-stream'
-import { streamMultipart } from '@ssttevee/multipart-parser'
 import MIMEParser from '@saekitominaga/mime-parser'
 // import createBrotliCompressionStream from '$lib/functions/brotli-compression-stream'
 // import zlib from 'node:zlib'
@@ -65,7 +64,6 @@ export const GET: RequestHandler = async function ({ request }) {
           const boundary = nanoid()
 
           const asyncIter = (async function * streamMultipart() {
-            const bodies = []
             const t = stringToByteArray
 
             for (const range of ranges) {
@@ -142,12 +140,20 @@ export const GET: RequestHandler = async function ({ request }) {
       }
     } else {
       if (request.headers.get('Accept') === 'text/plain') {
-        const body = (await listStrings(dataPath)).join('\n')
+        const body = (await listStrings(dataPath)).filter(x => {
+          if (x.startsWith('#')) return false
+          if (x.startsWith('.')) return false
+          return true
+        }).join('\n')
         return { headers: { 'Content-Type': 'text/plain' }, body }
       } else {
         return {
           body: {
-            files: await list(dataPath)
+            files: (await list(dataPath)).filter(x => {
+              if (x.name.startsWith('#')) return false
+              if (x.name.startsWith('.')) return false
+              return true
+            })
           }
         }
       }
