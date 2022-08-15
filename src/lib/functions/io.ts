@@ -270,6 +270,17 @@ export async function append (path: string | FileInfo, data: Uint8Array | string
 export async function remove (path: string | FileInfo) {
   const destination = fileToOSPath(path)
   await serialQueue.add(() => fs.rm(destination, { recursive: true, force: true, maxRetries: 100 }))
+  await parallelQueue.add(async () => {
+    const segments = pathToSegments(path)
+    const compressed = [...segments.slice(0, -1), `#compressed-${segments.at(-1)}.gz`].join('/')
+    try {
+      if (await exists(compressed)) {
+        await fs.rm(fileToOSPath(compressed), { force: true, maxRetries: 5 })
+      }
+    } catch (err) {
+      console.info('removing compressed file failed:', err)
+    }
+  })
 }
 
 /** ensure a folder exists at the path, and all the parent folders above it */

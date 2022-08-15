@@ -16,7 +16,7 @@
   $: pageCount = Math.ceil(files.length / filesPerPage)
   $: files, currentPage = 0 // reset pagenum if listing changes
 
-  function filePath (file: FileInfoJSON, mode: 'files' | 'raw') {
+  function filePath (file: FileInfoJSON, mode: 'files' | 'raw' | 'zip') {
     return encodeCollectionURLPath(collection, mode, file.path.split('/').slice(2).join('/'))
   }
 
@@ -56,7 +56,10 @@
             <a href={filePath(file, 'raw')} use:method={'delete'}><Icon name=trashcan label=Delete /></a>
           {/if}
           {#if file.isFile}
-            <a href={filePath(file, 'raw')} download><Icon name=out label=Download /></a>
+            <a href={filePath(file, 'raw')} download type={file.type}><Icon name=out label=Download /></a>
+          {/if}
+          {#if file.isFolder}
+            <a href={filePath(file, 'zip')} type="application/zip"><Icon name=zip label="Download Zip" /></a>
           {/if}
         </td>
       </tr>
@@ -116,8 +119,18 @@
     text-align: center;
   }
 
+  .pagination {
+    display: flex;
+    justify-items: left;
+    gap: 1ex;
+    flex-wrap: wrap;
+    margin-left: 1em;
+    margin-right: 1em;
+  }
+
   .pagination a {
-    margin-right: 1ex;
+    display: block;
+    /* margin-right: 1ex; */
   }
 
   .pagination a[aria-current=page] {

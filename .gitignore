@@ -132,3 +132,6 @@ dist
 */**/.DS_Store
 data/*
 .svelte-kit
+data
+data.tmp
+build
