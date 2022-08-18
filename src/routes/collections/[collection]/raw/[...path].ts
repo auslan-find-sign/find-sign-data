@@ -217,16 +217,6 @@ export const POST: RequestHandler = async function ({ request }) {
       if (!('operations' in postBody) || !Array.isArray(postBody.operations)) {
         throw new Error('operations must be an array')
       }
-      let data: Uint8Array
-      try {
-        data = await read(dataPath)
-      } catch (err) {
-        if (err.code === 'ENOENT') {
-          data = new Uint8Array(postBody.length)
-        } else {
-          throw err
-        }
-      }
       const valueSize = {
         u8: 1, s8: 1,
         u16: 2, s16: 2,
@@ -234,9 +224,21 @@ export const POST: RequestHandler = async function ({ request }) {
         f64: 8
       }[postBody.format]
 
+      let data: Uint8Array
+      try {
+        data = await read(dataPath)
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          data = new Uint8Array(postBody.length & valueSize)
+        } else {
+          throw err
+        }
+      }
+
       if ((data.byteLength * valueSize) !== postBody.length) {
         throw new Error('existing file has different length, cannot proceed')
       }
+
       const dataView = new DataView(data.buffer, data.byteOffset, data.byteLength)
       const get = {
         u8:  (address) => dataView.getUint8(address),
