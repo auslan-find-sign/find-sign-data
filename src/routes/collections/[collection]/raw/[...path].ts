@@ -208,7 +208,6 @@ export const POST: RequestHandler = async function ({ request }) {
     } else if (postBody.type === 'bulk') {
       await bulkWrite(dataPath, postBody.files)
     } else if (postBody.type === 'math') {
-      let data = await read(dataPath)
       if (!['u8', 's8', 'u16', 's16', 'u32', 's32', 'f32', 'f64'].includes(postBody.format)) {
         throw new Error('unsupported format')
       }
@@ -218,10 +217,24 @@ export const POST: RequestHandler = async function ({ request }) {
       if (!('operations' in postBody) || !Array.isArray(postBody.operations)) {
         throw new Error('operations must be an array')
       }
-      if (data === undefined) {
-        data = new Uint8Array(postBody.length)
+      let data: Uint8Array
+      try {
+        data = await read(dataPath)
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          data = new Uint8Array(postBody.length)
+        } else {
+          throw err
+        }
       }
-      if (data.byteLength !== postBody.length) {
+      const valueSize = {
+        u8: 1, s8: 1,
+        u16: 2, s16: 2,
+        u32: 4, s32: 4, f32: 4,
+        f64: 8
+      }[postBody.format]
+
+      if ((data.byteLength * valueSize) !== postBody.length) {
         throw new Error('existing file has different length, cannot proceed')
       }
       const dataView = new DataView(data.buffer, data.byteOffset, data.byteLength)
