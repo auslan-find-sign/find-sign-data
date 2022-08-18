@@ -1,5 +1,5 @@
 import { stringToByteArray } from '$lib/functions/binary-string'
-import { list, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream, bulkWriteIterable } from '$lib/functions/io'
+import { list, getInfo, isWithin, write, remove, listStrings, bulkWrite, readStream, read, bulkWriteIterable } from '$lib/functions/io'
 import type { RequestHandler } from '@sveltejs/kit'
 import { nanoid } from 'nanoid'
 import { decodeCollectionURLPath } from '$lib/functions/collection-url'
@@ -207,6 +207,63 @@ export const POST: RequestHandler = async function ({ request }) {
       return { status: 500, body: 'invalid post body, must be json object' }
     } else if (postBody.type === 'bulk') {
       await bulkWrite(dataPath, postBody.files)
+    } else if (postBody.type === 'math') {
+      let data = await read(dataPath)
+      if (!['u8', 's8', 'u16', 's16', 'u32', 's32', 'f32', 'f64'].includes(postBody.format)) {
+        throw new Error('unsupported format')
+      }
+      if (!('length' in postBody)) {
+        throw new Error('file length must be specified')
+      }
+      if (!('operations' in postBody) || !Array.isArray(postBody.operations)) {
+        throw new Error('operations must be an array')
+      }
+      if (data === undefined) {
+        data = new Uint8Array(postBody.length)
+      }
+      if (data.byteLength !== postBody.length) {
+        throw new Error('existing file has different length, cannot proceed')
+      }
+      const dataView = new DataView(data.buffer, data.byteOffset, data.byteLength)
+      const get = {
+        u8:  (address) => dataView.getUint8(address),
+        s8:  (address) => dataView.getInt8(address),
+        u16: (address) => dataView.getUint16(address * 2, false),
+        s16: (address) => dataView.getInt16(address * 2, false),
+        u32: (address) => dataView.getUint32(address * 4, false),
+        s32: (address) => dataView.getInt32(address * 4, false),
+        f32: (address) => dataView.getFloat32(address * 4, false),
+        f64: (address) => dataView.getFloat64(address * 8, false)
+      }[postBody.format] as (address: number) => number
+      const set = {
+        u8:  (address, value) => dataView.setUint8(address, value),
+        s8:  (address, value) => dataView.setInt8(address, value),
+        u16: (address, value) => dataView.setUint16(address * 2, value, false),
+        s16: (address, value) => dataView.setInt16(address * 2, value, false),
+        u32: (address, value) => dataView.setUint32(address * 4, value, false),
+        s32: (address, value) => dataView.setInt32(address * 4, value, false),
+        f32: (address, value) => dataView.setFloat32(address * 4, value, false),
+        f64: (address, value) => dataView.setFloat64(address * 8, value, false)
+      }[postBody.format] as (address: number, value: number) => void
+
+      for (const operation of postBody.operations) {
+        const { address, operator, operand } = operation
+        if (operator === 'add') {
+          set(address, get(address) + operand)
+        } else if (operator === 'subtract') {
+          set(address, get(address) - operand)
+        } else if (operator === 'multiply') {
+          set(address, get(address) * operand)
+        } else if (operator === 'divide') {
+          set(address, get(address) * operand)
+        } else if (operator === 'set') {
+          set(address, operand)
+        } else {
+          throw new Error('Unknown operator, must be add, subtract, multiply, divide, or set')
+        }
+      }
+
+      await write(dataPath, data)
     } else {
       return { status: 500, body: 'json body must specify type' }
     }
