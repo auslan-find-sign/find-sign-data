@@ -229,7 +229,7 @@ export const POST: RequestHandler = async function ({ request }) {
         data = await read(dataPath)
       } catch (err) {
         if (err.code === 'ENOENT') {
-          data = new Uint8Array(postBody.length & valueSize)
+          data = new Uint8Array(postBody.length * valueSize)
         } else {
           throw err
         }
