@@ -235,7 +235,7 @@ export const POST: RequestHandler = async function ({ request }) {
         }
       }
 
-      if ((data.byteLength * valueSize) !== postBody.length) {
+      if (data.byteLength !== postBody.length * valueSize) {
         throw new Error('existing file has different length, cannot proceed')
       }
 
