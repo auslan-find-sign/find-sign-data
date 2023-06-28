@@ -97,37 +97,37 @@ export const GET: RequestHandler = async function ({ request }) {
       }
 
       if (stats.isCompressible && acceptEncodings.includes('gzip')) {
-        const pathParts = dataPath.split('/')
-        const gzipPath = [...pathParts.slice(0, -1), `#compressed-${pathParts.at(-1)}.gz`].join('/')
+        // const pathParts = dataPath.split('/')
+        // const gzipPath = [...pathParts.slice(0, -1), `#compressed-${pathParts.at(-1)}.gz`].join('/')
 
-        try {
-          const gzipStats = await getInfo(gzipPath)
-          if (gzipStats.lastModified < stats.lastModified) {
-            throw new Error('Compressed version outdated')
-          }
+        // try {
+        //   const gzipStats = await getInfo(gzipPath)
+        //   if (gzipStats.lastModified < stats.lastModified) {
+        //     throw new Error('Compressed version outdated')
+        //   }
 
-          return {
-            headers: {
-              ...headers,
-              'Content-Encoding': 'gzip'
-            },
-            body: await readStream(gzipPath)
-          }
-        } catch (err) {
+        //   return {
+        //     headers: {
+        //       ...headers,
+        //       'Content-Encoding': 'gzip'
+        //     },
+        //     body: await readStream(gzipPath)
+        //   }
+        // } catch (err) {
           // console.log(err)
           // console.log('Sending dynamic gzip compressed response')
           const compressed = (await readStream(dataPath)).pipeThrough(new CompressionStream('gzip'))
-          const [fileCopy, streamCopy] = compressed.tee()
-          write(gzipPath, fileCopy)
+          // const [fileCopy, streamCopy] = compressed.tee()
+          // write(gzipPath, fileCopy)
 
           return {
             headers: {
               ...headers,
               'Content-Encoding': 'gzip'
             },
-            body: streamCopy
+            body: compressed //streamCopy
           }
-        }
+        // }
       }
 
       // return a normal request
